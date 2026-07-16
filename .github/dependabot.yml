@@ -16,7 +16,6 @@ updates:
   - package-ecosystem: "npm"
     directories:
       - "/"
-      - "/lambdas"
       - "/test-resources"
       - "/test-resources/audit-events-test-harness/lambdas"
       - "/test-resources/headless-core-stub/lambdas/*"
