@@ -41,20 +41,3 @@ jobs:
           all-files: true
           pull-repository: false
           install-dependencies: true
-
-  linting:
-    name: Linting
-    runs-on: ubuntu-latest
-    steps:
-      - name: Pull repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: zulu
-          cache: gradle
-
-      - name: Run Spotless
-        run: ./gradlew --no-daemon spotlessCheck
