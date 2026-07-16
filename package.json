@@ -1,5 +1,5 @@
 {
-  "name": "ipv-cri-common-lambdas",
+  "name": "ipv-cri-test-infrastructure",
   "type": "module",
   "workspaces": [
     "lambdas",
