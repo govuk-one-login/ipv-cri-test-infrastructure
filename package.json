@@ -2,7 +2,6 @@
   "name": "ipv-cri-test-infrastructure",
   "type": "module",
   "workspaces": [
-    "lambdas",
     "test-resources",
     "test-resources/headless-journey-script"
   ],
