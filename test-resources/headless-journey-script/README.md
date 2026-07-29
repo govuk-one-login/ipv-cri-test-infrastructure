@@ -30,6 +30,8 @@ npm run journey -- \
   --publicApiGatewayId klmnopqrst
 ```
 
+For more detailed output, add the `--verbose` flag when running the journey:
+
 AWS authentication is used to retrieve information from AWS and invoke API Gateways with your credentials, using the
 same functionality as the 'Test' tab in the AWS API Gateway dashboard. The gateways are invoked in this way to ensure
 compatibility with different CRI environments - localdev stacks may be public, but stacks deployed using the pipeline
