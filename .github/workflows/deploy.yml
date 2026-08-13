@@ -1,0 +1,169 @@
+name: "Deploy test resources"
+run-name: "Deploy ${{ inputs.tag }} to ${{ inputs.cri }} ${{ inputs.environment }}"
+on:
+  workflow_dispatch:
+    inputs:
+      cri:
+        description: Which CRI account to deploy to
+        type: choice
+        options:
+          - COMMON
+          - ADDRESS
+          - CHECK_HMRC
+          - EXPERIAN_KBV
+          - OPEN_BANKING
+        required: true
+      environment:
+        description: Which environment to deploy to
+        type: choice
+        options: [dev, build]
+        required: true
+      tag:
+        description: The released version to deploy, for example v1.2.0
+        type: string
+        required: true
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: poc-deploy-test-resources-${{ inputs.cri }}-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Check the tag is a published release
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+
+          if ! release=$(gh release view "$TAG" --json isDraft,isPrerelease,createdAt 2>/dev/null); then
+            echo "Error: No GitHub Release found for tag '$TAG'."
+            echo "Error: Only released versions can be deployed"
+            exit 1
+          fi
+
+          if [[ "$(jq -r .isDraft <<< "$release")" == "true" ]]; then
+            echo "Error: Release '$TAG' is a draft and must not be deployed."
+            exit 1
+          fi
+
+          if [[ "$(jq -r .isPrerelease <<< "$release")" == "true" && "$ENVIRONMENT" != "dev" ]]; then
+            echo "Error: Release '$TAG' is a pre-release, so it may only be deployed to dev."
+            exit 1
+          fi
+
+          sha=$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+          echo "Release $TAG is deployable, at commit $sha"
+
+  build:
+    name: Build ${{ inputs.tag }}
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      cache-key: ${{ steps.build.outputs.cache-key }}
+      cache-restore-keys: ${{ steps.build.outputs.cache-restore-keys }}
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Pull repository at ${{ inputs.tag }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          cache: npm
+          cache-dependency-path: ./package-lock.json
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@govuk-one-login"
+          always-auth: true
+
+      - name: Clear SAM build cache
+        run: rm -rf .aws-sam/cache
+
+      - name: Build SAM application
+        id: build
+        uses: govuk-one-login/github-actions/sam/build-application@c9c3f2ef04d9145894de83e973b0f4dc1e90d14e
+        with:
+          template: test-resources/infrastructure/template.yaml
+          source-dir: test-resources
+          cache-name: poc-test-resources-${{ inputs.tag }}
+          pull-repository: false
+
+  deploy:
+    name: Deploy to ${{ inputs.cri }} ${{ inputs.environment }}
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    environment: test-resources-${{ inputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Check the target CRI is configured
+        env:
+          CRI: ${{ inputs.cri }}
+          ENABLED: ${{ vars[format('{0}_ENABLED', inputs.cri)] }}
+          ROLE_ARN: ${{ vars[format('{0}_ROLE_ARN', inputs.cri)] }}
+          BUCKET: ${{ vars[format('{0}_ARTIFACTS_BUCKET_NAME', inputs.cri)] }}
+          SIGNING_PROFILE: ${{ vars[format('{0}_SIGNING_PROFILE_NAME', inputs.cri)] }}
+        run: |
+          set -euo pipefail
+          if [[ "${ENABLED:-}" != "true" ]]; then
+            echo "::error::${CRI}_ENABLED is not 'true' for this environment, so ${CRI} cannot be deployed to."
+            exit 1
+          fi
+
+          missing=()
+          if [[ -z "${ROLE_ARN:-}" ]]; then missing+=("${CRI}_ROLE_ARN"); fi
+          if [[ -z "${BUCKET:-}" ]]; then missing+=("${CRI}_ARTIFACTS_BUCKET_NAME"); fi
+          if [[ -z "${SIGNING_PROFILE:-}" ]]; then missing+=("${CRI}_SIGNING_PROFILE_NAME"); fi
+
+          if (( ${#missing[@]} > 0 )); then
+            echo "Error: Missing variables for ${CRI}: ${missing[*]}"
+            exit 1
+          fi
+
+          echo "$CRI is enabled and fully configured"
+
+      - name: Get SAM artifact
+        uses: actions/cache/restore@v4
+        with:
+          key: ${{ needs.build.outputs.cache-key }}
+          restore-keys: ${{ needs.build.outputs.cache-restore-keys }}
+          path: .aws-sam
+          fail-on-cache-miss: true
+
+      - name: Assume AWS Role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars[format('{0}_ROLE_ARN', inputs.cri)] }}
+          aws-region: eu-west-2
+
+      - name: Upload to S3
+        uses: govuk-one-login/devplatform-upload-action@v3.9.2
+        with:
+          artifact-bucket-name: ${{ vars[format('{0}_ARTIFACTS_BUCKET_NAME', inputs.cri)] }}
+          signing-profile-name: ${{ vars[format('{0}_SIGNING_PROFILE_NAME', inputs.cri)] }}
+          working-directory: .aws-sam/build
