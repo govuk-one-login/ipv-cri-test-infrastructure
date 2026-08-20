@@ -72,21 +72,21 @@ Mappings:
     di-ipv-cri-cic-api:
       dev: true
       build: true
-      staging: false
-      integration: false
-      production: false
+      staging: true
+      integration: true
+      production: true
     di-ipv-cri-f2f-api:
       dev: true
       build: true
-      staging: false
-      integration: false
-      production: false
+      staging: true
+      integration: true
+      production: true
     di-ipv-cri-bav-api:
       dev: true
       build: true
-      staging: false
-      integration: false
-      production: false
+      staging: true
+      integration: true
+      production: true
 
   TestHarnessUrl:
     di-ipv-cri-check-hmrc-api:
