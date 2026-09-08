@@ -57,7 +57,7 @@ jobs:
       fail-fast: false
       matrix:
         environment: [dev, build]
-        cri: [COMMON, ADDRESS, CHECK_HMRC, EXPERIAN_KBV, OPEN_BANKING, CIC, F2F, BAV]
+        cri: [COMMON, ADDRESS, CHECK_HMRC, EXPERIAN_KBV, OPEN_BANKING, CIC, F2F, BAV, IPVR]
         include:
           - {cri: COMMON, name: "Common CRI"}
           - {cri: ADDRESS, name: Address}
@@ -67,6 +67,7 @@ jobs:
           - { cri: CIC, name: "Claimed Identity Collector" }
           - { cri: F2F, name: "Face to Face" }
           - { cri: BAV, name: "Bank Account Verification" }
+          - { cri: IPVR, name: "IPV Return" }
     steps:
       - name: Check deployment enabled
         id: enabled
