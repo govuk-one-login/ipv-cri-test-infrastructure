@@ -1,4 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from "aws-lambda";
+import { Logger } from "@aws-lambda-powertools/logger";
 import { CallbackLambdaHandler } from "../src/callback-handler";
 import { CallBackService } from "../src/services/callback-service";
 import * as KeyJwtHelper from "../src/services/private-key-jwt-helper";
@@ -55,7 +56,7 @@ describe("callback-handler", () => {
             {} as Context,
         );
 
-        expect(getParametersSpy).toHaveBeenCalledWith(DEFAULT_CLIENT_ID);
+        expect(getParametersSpy).toHaveBeenCalledWith(DEFAULT_CLIENT_ID, expect.any(Logger));
         expect(getTokenSpy).toHaveBeenCalledWith("https://my-audience.example.com/token", keyJwtValue);
         expect(issueCredentialSpy).toHaveBeenCalledWith(
             "https://my-audience.example.com/credential/issue",
@@ -97,7 +98,7 @@ describe("callback-handler", () => {
             {} as Context,
         );
 
-        expect(getParametersSpy).toHaveBeenCalledWith(clientIdOverride);
+        expect(getParametersSpy).toHaveBeenCalledWith(clientIdOverride, expect.any(Logger));
         expect(getTokenSpy).toHaveBeenCalledWith("https://my-audience.example.com/token", keyJwtValue);
         expect(issueCredentialSpy).toHaveBeenCalledWith(
             "https://my-audience.example.com/credential/issue",
@@ -141,7 +142,7 @@ describe("callback-handler", () => {
             {} as Context,
         );
 
-        expect(getParametersSpy).toHaveBeenCalledWith(DEFAULT_CLIENT_ID);
+        expect(getParametersSpy).toHaveBeenCalledWith(DEFAULT_CLIENT_ID, expect.any(Logger));
         expect(getTokenSpy).toHaveBeenCalledWith("https://audience-override.example.com/token", keyJwtValue);
         expect(issueCredentialSpy).toHaveBeenCalledWith(
             "https://audience-override.example.com/credential/issue",
@@ -178,7 +179,7 @@ describe("callback-handler", () => {
 
         const response = await lambdaHandler(event as APIGatewayProxyEvent, {} as Context);
 
-        expect(getParametersSpy).toHaveBeenCalledWith(DEFAULT_CLIENT_ID);
+        expect(getParametersSpy).toHaveBeenCalledWith(DEFAULT_CLIENT_ID, expect.any(Logger));
         expect(response.statusCode).toBe(500);
         expect(JSON.parse(response.body).message).toBe("Server error");
     });
@@ -209,7 +210,7 @@ describe("callback-handler", () => {
 
         const response = await lambdaHandler(event as APIGatewayProxyEvent, {} as Context);
 
-        expect(getParametersSpy).toHaveBeenCalledWith(DEFAULT_CLIENT_ID);
+        expect(getParametersSpy).toHaveBeenCalledWith(DEFAULT_CLIENT_ID, expect.any(Logger));
         expect(issueCredentialSpy).toHaveBeenCalledWith(expect.any(String), accessTokenValue);
         expect(response.statusCode).toBe(500);
         expect(response.body).toBe("mock-credential-error");

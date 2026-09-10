@@ -14,6 +14,13 @@ import { vi, describe, expect, it, beforeEach, afterEach } from "vitest";
 
 vi.mock("jose", { spy: true });
 
+const mockPublicKey: jose.CryptoKey = {
+    type: "public",
+    algorithm: { name: "RSA-OAEP" },
+    extractable: true,
+    usages: ["encrypt"],
+};
+
 describe("signing-service", () => {
     const audience = "https://test-audience.com";
     const mockKMSClient = mockClient(KMSClient);
@@ -52,7 +59,7 @@ describe("signing-service", () => {
             mockKMSClient.on(GetPublicKeyCommand, { KeyId: "abc123" }).resolvesOnce({ PublicKey: keyBuffer });
 
             const publicEncryptionKey = await getPublicEncryptionKey(audience);
-            const result = await encryptSignedJwt(TestData.jwt, publicEncryptionKey as jose.KeyLike);
+            const result = await encryptSignedJwt(TestData.jwt, publicEncryptionKey);
 
             expect(result).toMatch(
                 /^eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/g,
@@ -112,7 +119,7 @@ describe("signing-service", () => {
 
             const spyImportJWK = vi.spyOn(jose, "importJWK").mockImplementation(async (key: jose.JWK) => {
                 expect(key?.kid).toBe("dummy-kid_2");
-                return { type: "public" } as jose.KeyLike;
+                return mockPublicKey;
             });
 
             const result = await getPublicEncryptionKey(audience);
@@ -209,7 +216,7 @@ describe("signing-service", () => {
             });
 
             global.fetch = fetchSpy;
-            const importSpy = vi.spyOn(jose, "importJWK").mockResolvedValue({ type: "public" } as jose.KeyLike);
+            const importSpy = vi.spyOn(jose, "importJWK").mockResolvedValue(mockPublicKey);
 
             const key1 = await getPublicEncryptionKey(audience);
             const key2 = await getPublicEncryptionKey(audience);
@@ -232,7 +239,7 @@ describe("signing-service", () => {
             });
 
             global.fetch = fetchSpy;
-            vi.spyOn(jose, "importJWK").mockResolvedValue({ type: "public" } as jose.KeyLike);
+            vi.spyOn(jose, "importJWK").mockResolvedValue(mockPublicKey);
 
             await getPublicEncryptionKey(audience);
             _resetCachedPublicKeyForTest();
@@ -263,7 +270,7 @@ describe("signing-service", () => {
                 .resolvesOnce({ PublicKey: keyBuffer })
                 .resolvesOnce({ PublicKey: keyBuffer });
 
-            const importSpy = vi.spyOn(jose, "importSPKI").mockResolvedValue({ type: "public" } as jose.KeyLike);
+            const importSpy = vi.spyOn(jose, "importSPKI").mockResolvedValue(mockPublicKey);
 
             const key1 = await getPublicEncryptionKey(audience);
             const key2 = await getPublicEncryptionKey(audience);
@@ -308,8 +315,8 @@ describe("signing-service", () => {
             global.fetch = fetchSpy;
             const importSpy = vi
                 .spyOn(jose, "importJWK")
-                .mockResolvedValueOnce({ type: "public" } as jose.KeyLike)
-                .mockResolvedValueOnce({ type: "public" } as jose.KeyLike);
+                .mockResolvedValueOnce(mockPublicKey)
+                .mockResolvedValueOnce(mockPublicKey);
 
             const now = Date.now();
             const dateNowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
@@ -342,7 +349,7 @@ describe("signing-service", () => {
             });
 
             global.fetch = fetchSpy;
-            const importSpy = vi.spyOn(jose, "importJWK").mockResolvedValueOnce({ type: "public" } as jose.KeyLike);
+            const importSpy = vi.spyOn(jose, "importJWK").mockResolvedValueOnce(mockPublicKey);
 
             await getPublicEncryptionKey(audience);
 

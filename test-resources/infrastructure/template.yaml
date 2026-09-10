@@ -267,7 +267,6 @@ Resources:
                   - UseCommonStackNameOverride
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackNameOverride}/clients/*"
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/{{resolve:ssm:/common-cri/oauth-common/stack-name}}/clients/*"
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/test-resources/ipv-core-stub-aws-headless/privateSigningKey"
 
 
   MockJwkFunctionLogGroup:
@@ -326,7 +325,7 @@ Resources:
                   - UseCommonStackNameOverride
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackNameOverride}/clients/*/jwtAuthentication/*"
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/{{resolve:ssm:/common-cri/oauth-common/stack-name}}/clients/*/jwtAuthentication/*"
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/test-resources/ipv-core-stub-aws-headless/privateSigningKey"
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/test-resources/*/privateSigningKey"
 
   StartFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -384,7 +383,7 @@ Resources:
                   - UseCommonStackNameOverride
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackNameOverride}/clients/*/jwtAuthentication/*"
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/{{resolve:ssm:/common-cri/oauth-common/stack-name}}/clients/*/jwtAuthentication/*"
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/test-resources/ipv-core-stub-aws-headless/privateSigningKey"
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/test-resources/*/privateSigningKey"
                 - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/test-resources/apiKey"
             - Effect: Allow
               Action: cloudformation:DescribeStacks

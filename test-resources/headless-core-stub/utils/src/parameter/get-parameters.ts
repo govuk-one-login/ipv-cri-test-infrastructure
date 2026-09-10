@@ -17,3 +17,22 @@ export const getParametersValues = async (parameterPaths: string[]): Promise<Rec
         }),
     );
 };
+
+// read a single, optional parameter
+// return undefined if missing (throwOnError) or permission denied (catch)
+export const getOptionalParameterValue = async (parameterPath: string): Promise<string | undefined> => {
+    try {
+        const { _errors: errors, ...parameters } = await getParametersByName<string>(
+            { [parameterPath]: {} },
+            { maxAge: 300, throwOnError: false },
+        );
+
+        if (errors?.length) {
+            return undefined;
+        } else {
+            return String(parameters[parameterPath]);
+        }
+    } catch {
+        return undefined;
+    }
+};
