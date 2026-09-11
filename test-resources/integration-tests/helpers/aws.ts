@@ -1,26 +1,24 @@
-import { ServiceInputTypes, ServiceOutputTypes } from "@aws-sdk/client-dynamodb";
 import { Command } from "@aws-sdk/types";
-import { Client, SmithyResolvedConfiguration } from "@smithy/smithy-client";
-import { HttpHandlerOptions } from "@smithy/types";
+import { SmithyResolvedConfiguration } from "@smithy/core/client";
+import { Client, HttpHandlerOptions, MetadataBearer } from "@smithy/types";
 
-type AWSServiceClient<Input extends ServiceInputTypes, Output extends ServiceOutputTypes> = Client<
-    HttpHandlerOptions,
+type AWSServiceClient<Input extends object, Output extends MetadataBearer> = Client<
     Input,
     Output,
     SmithyResolvedConfiguration<HttpHandlerOptions>
 >;
 
 type AWSServiceClientCommand<
-    Input extends ServiceInputTypes,
+    Input extends object,
     InputType extends Input,
-    Output extends ServiceOutputTypes,
+    Output extends MetadataBearer,
     OutputType extends Output,
 > = Command<Input, InputType, Output, OutputType, SmithyResolvedConfiguration<HttpHandlerOptions>>;
 
 export function createSendCommandWithClient<
-    Input extends ServiceInputTypes,
+    Input extends object,
     InputType extends Input,
-    Output extends ServiceOutputTypes,
+    Output extends MetadataBearer,
     OutputType extends Output,
 >(client: AWSServiceClient<Input, Output>) {
     return function <CommandInputType extends Input = InputType, CommandOutputType extends Output = OutputType>(
@@ -33,7 +31,7 @@ export function createSendCommandWithClient<
     };
 }
 
-export function createSendCommand<Input extends ServiceInputTypes, Output extends ServiceOutputTypes>(
+export function createSendCommand<Input extends object, Output extends MetadataBearer>(
     clientConstructor: () => AWSServiceClient<Input, Output>,
 ) {
     return createSendCommandWithClient(clientConstructor());

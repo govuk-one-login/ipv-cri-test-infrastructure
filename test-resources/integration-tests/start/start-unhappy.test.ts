@@ -2,6 +2,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { stackOutputs } from "../helpers/cloudformation";
 import { signedFetch } from "../helpers/fetch";
 
+type ErrorResponseBody = { message: string };
+
 describe("start endpoint unhappy path", () => {
     let testHarnessExecuteUrl: string;
     const aud = "https://test-aud";
@@ -21,7 +23,7 @@ describe("start endpoint unhappy path", () => {
             body: JSON.stringify({ aud, client_id: "no-ssm-params", iss }),
         });
 
-        const { message } = await response.json();
+        const { message } = (await response.json()) as ErrorResponseBody;
 
         expect(message).toBe("Server error");
         expect(response.status).toBe(500);
@@ -40,7 +42,7 @@ describe("start endpoint unhappy path", () => {
             body: JSON.stringify({ aud, client_id: clientId, iss, shared_claims: sharedClaimsOverrides }),
         });
 
-        const { message } = await response.json();
+        const { message } = (await response.json()) as ErrorResponseBody;
 
         expect(message).toBe(
             "Claims set failed validation: /shared_claims/birthDate - must be array, /shared_claims/name - must be array",
