@@ -65,6 +65,12 @@ describe("startJourney", () => {
         await expect(startJourney(overrides)).rejects.toThrow(StartFunctionError);
     });
 
+    it("rejects when the lambda api cannot be reached", async () => {
+        lambdaMock.on(InvokeCommand).rejects(new Error("connect ETIMEDOUT 10.0.0.1:443"));
+
+        await expect(startJourney(overrides)).rejects.toThrow(/Could not reach function/);
+    });
+
     it("rejects an incomplete response", async () => {
         lambdaMock.on(InvokeCommand).resolves({
             Payload: encode({ statusCode: 200, body: JSON.stringify({ client_id: "only-the-client-id" }) }),

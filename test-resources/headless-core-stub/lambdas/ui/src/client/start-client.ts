@@ -1,7 +1,12 @@
-import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
+import { InvokeCommand, InvokeCommandOutput, LambdaClient } from "@aws-sdk/client-lambda";
 import { DEFAULT_SHARED_CLAIMS } from "../../../../utils/src/constants";
+import { logger } from "../util/logger";
 
-const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION || "eu-west-2" });
+const lambdaClient = new LambdaClient({
+    region: process.env.AWS_REGION,
+    requestHandler: { connectionTimeout: 3_000, requestTimeout: 15_000 },
+    maxAttempts: 2,
+});
 
 export type StartResponse = {
     client_id: string;
@@ -21,15 +26,34 @@ export const startJourney = async (overrides: ReturnType<typeof buildClaimsSetOv
         throw new StartFunctionError("START_FUNCTION_NAME is not configured");
     }
 
-    const result = await lambdaClient.send(
-        new InvokeCommand({
-            FunctionName: functionName,
-            Payload: JSON.stringify({ body: JSON.stringify(overrides) }),
-        }),
-    );
+    logger.info("Invoking function", { functionName, clientId: overrides.client_id });
+    const startedAt = Date.now();
+
+    let result: InvokeCommandOutput;
+    try {
+        result = await lambdaClient.send(
+            new InvokeCommand({
+                FunctionName: functionName,
+                Payload: JSON.stringify({ body: JSON.stringify(overrides) }),
+            }),
+        );
+    } catch (error) {
+        logger.error("Could not reach function", {
+            functionName,
+            durationMs: Date.now() - startedAt,
+            error: error as Error,
+        });
+        throw new StartFunctionError(`Could not reach function: ${(error as Error).message}`);
+    }
+
+    logger.info("Got reply", {
+        functionName,
+        durationMs: Date.now() - startedAt,
+        functionError: result.FunctionError,
+    });
 
     if (result.FunctionError) {
-        throw new StartFunctionError(`Headless core stub failed: ${result.FunctionError}`);
+        throw new StartFunctionError(`Function error: ${result.FunctionError}`);
     }
 
     const payload = result.Payload ? new TextDecoder().decode(result.Payload) : "";
@@ -38,18 +62,16 @@ export const startJourney = async (overrides: ReturnType<typeof buildClaimsSetOv
     try {
         response = JSON.parse(payload);
     } catch {
-        throw new StartFunctionError("Headless core stub returned a response that could not be parsed");
+        throw new StartFunctionError("Function returned a response that could not be parsed");
     }
 
     if (response.statusCode !== 200) {
-        throw new StartFunctionError(
-            `Headless core stub returned ${response.statusCode}: ${extractMessage(response.body)}`,
-        );
+        throw new StartFunctionError(`Function returned ${response.statusCode}: ${extractMessage(response.body)}`);
     }
 
     const { client_id, request } = JSON.parse(response.body as string) as Partial<StartResponse>;
     if (!client_id || !request) {
-        throw new StartFunctionError("Headless core stub did not return a client_id and request");
+        throw new StartFunctionError("Function did not return a client_id and request");
     }
 
     return { client_id, request };
