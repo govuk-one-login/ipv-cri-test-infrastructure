@@ -14,7 +14,7 @@
       Generate an encrypted JWT that can be used to start a session in a CRI.
   </p>
 
-  <form method="post" action="/ui/start" novalidate>
+  <form method="post" action="{{ basePath }}{{ startPath }}" novalidate>
     {{ govukInput({
       id: "client_id",
       name: "client_id",

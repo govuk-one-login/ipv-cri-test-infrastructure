@@ -24,7 +24,7 @@ aws ssm put-parameter \
 aws ssm put-parameter \
   --name /test-resources/ui/sessionSigningKey \
   --type SecureString \
-  --value "$(openssl rand -base64 32)"
+  --value "$(openssl rand -hex 32)"
 ```
 
 The paths are configurable with the `UiCredentialsParameterName` and `UiSessionKeyParameterName` stack

@@ -1,12 +1,11 @@
+import type { Express } from "express";
 import { Environment, type ILoader, Loader, type LoaderSource } from "nunjucks";
 import path from "node:path";
+import { FAVICON_PATH, SIGN_IN_PATH, START_PATH, STYLESHEET_PATH, UI_ROOT } from "../paths";
 import { govukTemplates } from "./govuk-templates";
 import layout from "./templates/layout.njk";
 import signIn from "./templates/sign-in.njk";
 import start from "./templates/start.njk";
-
-export const STYLESHEET_PATH = "/ui/govuk.css";
-export const FAVICON_PATH = "/ui/favicon.svg";
 
 const SERVICE_NAME = "CRI Journey Builder";
 
@@ -36,12 +35,13 @@ class BundledLoader extends Loader implements ILoader {
     }
 }
 
-const environment = new Environment(new BundledLoader(), { autoescape: true });
+const nunjucksEnvironment = new Environment(new BundledLoader(), { autoescape: true });
 
-export const render = (template: string, context: Record<string, unknown> = {}): string =>
-    environment.render(template, {
-        serviceName: SERVICE_NAME,
-        stylesheetPath: STYLESHEET_PATH,
-        faviconPath: FAVICON_PATH,
-        ...context,
-    });
+nunjucksEnvironment.addGlobal("serviceName", SERVICE_NAME);
+nunjucksEnvironment.addGlobal("stylesheetPath", STYLESHEET_PATH);
+nunjucksEnvironment.addGlobal("faviconPath", FAVICON_PATH);
+nunjucksEnvironment.addGlobal("root", UI_ROOT);
+nunjucksEnvironment.addGlobal("signInPath", SIGN_IN_PATH);
+nunjucksEnvironment.addGlobal("startPath", START_PATH);
+
+export const configureViews = (app: Express): void => nunjucksEnvironment.express(app);

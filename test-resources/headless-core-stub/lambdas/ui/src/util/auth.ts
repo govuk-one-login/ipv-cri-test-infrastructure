@@ -1,10 +1,9 @@
 import { getParameter } from "@aws-lambda-powertools/parameters/ssm";
 import type { NextFunction, Request, Response } from "express";
 import { getIronSession } from "iron-session";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { SIGN_IN_PATH, UI_ROOT } from "../paths";
 import { logger } from "./logger";
-
-export const SIGN_IN_PATH = "/ui/sign-in";
 
 const COOKIE_NAME = "ui_session";
 const SESSION_LIFETIME_SECONDS = 8 * 60 * 60;
@@ -30,8 +29,13 @@ export const getConfiguredCredentials = async (): Promise<string> => {
     return credentials;
 };
 
+const comparisonKey = randomBytes(32);
+
 export const credentialsMatch = (supplied: string, expected: string): boolean =>
-    timingSafeEqual(createHash("sha256").update(supplied).digest(), createHash("sha256").update(expected).digest());
+    timingSafeEqual(
+        createHmac("sha256", comparisonKey).update(supplied).digest(),
+        createHmac("sha256", comparisonKey).update(expected).digest(),
+    );
 
 const getSessionKey = async (): Promise<Uint8Array> => {
     const fromEnvironment = process.env.UI_SESSION_KEY;
@@ -64,7 +68,7 @@ const sessionOptions = async (req: Request) => ({
         httpOnly: true,
         secure: req.protocol === "https",
         sameSite: "lax" as const,
-        path: "/ui",
+        path: UI_ROOT,
         maxAge: SESSION_LIFETIME_SECONDS,
     },
 });

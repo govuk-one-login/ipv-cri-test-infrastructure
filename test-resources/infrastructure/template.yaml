@@ -40,17 +40,11 @@ Parameters:
     Default: "false"
     AllowedValues: ["true", "false"]
   UiCredentialsParameterName:
-    Description: >-
-      SecureString SSM parameter holding `username:password` for the /ui page. CloudFormation cannot create
-      SecureStrings, so this parameter must be created by hand once per account - see the headless core stub
-      README. The UI returns 503 until it exists.
+    Description: "Parameter holding `username:password` for the /ui page"
     Type: String
     Default: "/test-resources/ui/credentials"
   UiSessionKeyParameterName:
-    Description: >-
-      SecureString SSM parameter holding a base64 random key (32 bytes) used to sign /ui session cookies.
-      Kept separate from the credentials so a captured cookie cannot be used to guess the password. Also
-      created by hand - see the headless core stub README.
+    Description: "Parameter holding a base64 random key (32 bytes) used to sign /ui session cookies"
     Type: String
     Default: "/test-resources/ui/sessionSigningKey"
 
