@@ -58,7 +58,7 @@ type SessionData = {
     username?: string;
 };
 
-const sessionOptions = async (req: Request) => ({
+const sessionOptions = async (req: Request, res: Response) => ({
     password: Buffer.from(await getSessionKey()).toString("base64"),
     cookieName: COOKIE_NAME,
     ttl: SESSION_LIFETIME_SECONDS,
@@ -66,20 +66,20 @@ const sessionOptions = async (req: Request) => ({
         httpOnly: true,
         secure: req.protocol === "https",
         sameSite: "lax" as const,
-        path: UI_ROOT,
+        path: `${res.locals.basePath}${UI_ROOT}`,
         maxAge: SESSION_LIFETIME_SECONDS,
     },
 });
 
 export const startSession = async (req: Request, res: Response, credentials: string): Promise<void> => {
-    const session = await getIronSession<SessionData>(req, res, await sessionOptions(req));
+    const session = await getIronSession<SessionData>(req, res, await sessionOptions(req, res));
 
     session.username = credentials.split(":")[0];
     await session.save();
 };
 
 const hasValidSession = async (req: Request, res: Response): Promise<boolean> => {
-    const session = await getIronSession<SessionData>(req, res, await sessionOptions(req));
+    const session = await getIronSession<SessionData>(req, res, await sessionOptions(req, res));
 
     return !!session.username;
 };

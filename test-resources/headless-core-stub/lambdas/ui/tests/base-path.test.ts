@@ -4,7 +4,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app";
 import { resolveBasePath } from "../src/util/base-path";
-import { configureEnvironment } from "./helpers/app";
+import { configureEnvironment, CREDENTIALS } from "./helpers/app";
 
 vi.mock("@codegenie/serverless-express", () => ({ getCurrentInvoke: vi.fn() }));
 
@@ -54,6 +54,16 @@ describe("execute-api", () => {
 
         expect(response.headers.location).toBe("/dev/ui/sign-in");
     });
+
+    it("prefixes the stage on the session cookie path", async () => {
+        const response = await request(createApp())
+            .post("/ui/sign-in")
+            .set("Host", EXECUTE_API_HOST)
+            .type("form")
+            .send(CREDENTIALS);
+
+        expect(response.headers["set-cookie"][0]).toContain("Path=/dev/ui;");
+    });
 });
 
 describe("custom domain", () => {
@@ -69,6 +79,16 @@ describe("custom domain", () => {
         const response = await request(createApp()).get("/ui").set("Host", CUSTOM_DOMAIN_HOST);
 
         expect(response.headers.location).toBe("/ui/sign-in");
+    });
+
+    it("does not prefix the stage on the session cookie path", async () => {
+        const response = await request(createApp())
+            .post("/ui/sign-in")
+            .set("Host", CUSTOM_DOMAIN_HOST)
+            .type("form")
+            .send(CREDENTIALS);
+
+        expect(response.headers["set-cookie"][0]).toContain("Path=/ui;");
     });
 });
 
