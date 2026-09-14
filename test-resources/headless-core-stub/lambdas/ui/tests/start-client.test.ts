@@ -7,12 +7,11 @@ const lambdaMock = mockClient(LambdaClient);
 
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)) as InvokeCommandOutput["Payload"];
 
-const overrides = buildClaimsSetOverrides({ clientId: "ipv-core-stub-aws-headless" });
-
 describe("buildClaimsSetOverrides", () => {
-    it("sends the stub's default shared claims", () => {
-        expect(overrides.client_id).toBe("ipv-core-stub-aws-headless");
-        expect(overrides.shared_claims.name).toEqual([
+    it("passes the client id through", () => {
+        const claimSet = buildClaimsSetOverrides({ clientId: "a-client-id" });
+        expect(claimSet.client_id).toBe("a-client-id");
+        expect(claimSet.shared_claims.name).toEqual([
             {
                 nameParts: [
                     { type: "GivenName", value: "KENNETH" },
@@ -20,10 +19,12 @@ describe("buildClaimsSetOverrides", () => {
                 ],
             },
         ]);
-        expect(overrides.shared_claims.birthDate).toEqual([{ value: "1965-07-08" }]);
-        expect(overrides.shared_claims.address).toHaveLength(1);
+        expect(claimSet.shared_claims.birthDate).toEqual([{ value: "1965-07-08" }]);
+        expect(claimSet.shared_claims.address).toHaveLength(1);
     });
 });
+
+const overrides = buildClaimsSetOverrides({ clientId: "ipv-core-stub-aws-headless" });
 
 describe("startJourney", () => {
     beforeEach(() => {
@@ -58,7 +59,7 @@ describe("startJourney", () => {
         await expect(startJourney(overrides)).rejects.toThrow(/400: Claims set failed validation/);
     });
 
-    it("rejects when the start function errored", async () => {
+    it("rejects when the start function errors", async () => {
         lambdaMock.on(InvokeCommand).resolves({ FunctionError: "Unhandled", Payload: encode({}) });
 
         await expect(startJourney(overrides)).rejects.toThrow(StartFunctionError);

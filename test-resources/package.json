@@ -28,6 +28,7 @@
         "@govuk-one-login/data-vocab": "2.0.2",
         "@govuk-one-login/data-vocab-schemas": "2.0.2",
         "@middy/core": "4.7.0",
+        "@types/supertest": "7.2.1",
         "ajv": "8.20.0",
         "ajv-formats": "3.0.1",
         "aws-sdk-client-mock": "4.1.0",
@@ -35,6 +36,7 @@
         "esbuild": "0.28.1",
         "express": "5.2.1",
         "govuk-frontend": "6.5.0",
+        "iron-session": "9.0.1",
         "jose": "6.2.3",
         "nunjucks": "^3.2.4"
     },
