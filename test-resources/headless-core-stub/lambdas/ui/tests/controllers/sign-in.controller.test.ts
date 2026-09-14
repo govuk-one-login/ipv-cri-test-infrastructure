@@ -36,6 +36,13 @@ describe("POST /ui/sign-in", () => {
         expect(response.headers["set-cookie"]).toBeUndefined();
     });
 
+    it("rejects a wrong password of the same length", async () => {
+        const response = await signIn({ ...CREDENTIALS, password: "hunter3" }); // pragma: allowlist secret
+
+        expect(response.status).toBe(401);
+        expect(response.headers["set-cookie"]).toBeUndefined();
+    });
+
     it("errors when no session key is configured", async () => {
         delete process.env.UI_SESSION_KEY;
         delete process.env.SESSION_KEY_PARAM_NAME;
