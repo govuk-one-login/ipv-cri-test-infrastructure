@@ -1,7 +1,7 @@
 import { getParameter } from "@aws-lambda-powertools/parameters/ssm";
 import type { NextFunction, Request, Response } from "express";
 import { getIronSession } from "iron-session";
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { SIGN_IN_PATH, UI_ROOT } from "../paths";
 import { logger } from "./logger";
 
@@ -29,13 +29,11 @@ export const getConfiguredCredentials = async (): Promise<string> => {
     return credentials;
 };
 
-const comparisonKey = randomBytes(32);
-
-export const credentialsMatch = (supplied: string, expected: string): boolean =>
-    timingSafeEqual(
-        createHmac("sha256", comparisonKey).update(supplied).digest(),
-        createHmac("sha256", comparisonKey).update(expected).digest(),
-    );
+export const credentialsMatch = (supplied: string, expected: string): boolean => {
+    const suppliedBytes = Buffer.from(supplied);
+    const expectedBytes = Buffer.from(expected);
+    return suppliedBytes.length === expectedBytes.length && timingSafeEqual(suppliedBytes, expectedBytes);
+};
 
 const getSessionKey = async (): Promise<Uint8Array> => {
     const fromEnvironment = process.env.UI_SESSION_KEY;
