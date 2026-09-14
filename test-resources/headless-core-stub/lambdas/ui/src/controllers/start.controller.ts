@@ -13,7 +13,7 @@ type ValidatedForm = {
 
 const trimmed = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 
-export const validateStartForm = (body: Record<string, unknown>): ValidatedForm => {
+export const validateForm = (body: Record<string, unknown>): ValidatedForm => {
     const values: StartFormValues = {
         clientId: trimmed(body.client_id),
         authoriseBaseUrl: trimmed(body.authorise_base_url),
@@ -54,7 +54,7 @@ const get = (_req: Request, res: Response): void => {
 };
 
 const post = async (req: Request, res: Response): Promise<void> => {
-    const { values, errors, authoriseBase } = validateStartForm(req.body ?? {});
+    const { values, errors, authoriseBase } = validateForm(req.body ?? {});
 
     if (!authoriseBase || Object.keys(errors).length) {
         res.status(400).render(START_TEMPLATE, startModel({ values, errors }));

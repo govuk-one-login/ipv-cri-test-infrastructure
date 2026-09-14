@@ -2,7 +2,7 @@ import { InvokeCommand, type InvokeCommandOutput, LambdaClient } from "@aws-sdk/
 import { mockClient } from "aws-sdk-client-mock";
 import type request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
-import { validateStartForm } from "../../src/controllers/start.controller";
+import { validateForm } from "../../src/controllers/start.controller";
 import { START_PATH, UI_ROOT } from "../../src/paths";
 import { configureEnvironment, CRI_FRONTEND_URL, signedInAgent } from "../helpers/app";
 
@@ -41,7 +41,7 @@ const submitForm = (form: Record<string, string>) => agent.post(START_PATH).type
 
 describe("validateStartForm", () => {
     it("accepts the deployed CRI front end", () => {
-        const { errors, authoriseBase } = validateStartForm(validForm);
+        const { errors, authoriseBase } = validateForm(validForm);
 
         expect(errors).toEqual({});
         expect(authoriseBase?.origin).toBe(CRI_FRONTEND_URL);
@@ -50,7 +50,7 @@ describe("validateStartForm", () => {
     it("accepts a localhost front end", () => {
         const form = { ...validForm, authorise_base_url: "http://localhost:4501" };
 
-        const { errors, authoriseBase } = validateStartForm(form);
+        const { errors, authoriseBase } = validateForm(form);
 
         expect(errors).toEqual({});
         expect(authoriseBase?.origin).toBe("http://localhost:4501");
@@ -59,21 +59,21 @@ describe("validateStartForm", () => {
     it("rejects any other host", () => {
         const form = { ...validForm, authorise_base_url: "https://evil.example.com" };
 
-        const { errors, authoriseBase } = validateStartForm(form);
+        const { errors, authoriseBase } = validateForm(form);
 
         expect(errors.authoriseBaseUrl).toBe(`Enter either ${CRI_FRONTEND_URL} or a localhost address`);
         expect(authoriseBase).toBeUndefined();
     });
 
     it("requires a client id", () => {
-        const { values, errors } = validateStartForm({ ...validForm, client_id: "  " });
+        const { values, errors } = validateForm({ ...validForm, client_id: "  " });
 
         expect(values.clientId).toBe("");
         expect(errors.clientId).toBe("Enter an OAuth Client ID");
     });
 
     it("requires a front end url", () => {
-        const { errors } = validateStartForm({ ...validForm, authorise_base_url: "" });
+        const { errors } = validateForm({ ...validForm, authorise_base_url: "" });
 
         expect(errors.authoriseBaseUrl).toBe("Enter the CRI front URL");
     });

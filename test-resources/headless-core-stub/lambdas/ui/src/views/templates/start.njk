@@ -32,6 +32,7 @@
 
     {{ govukInput({
       id: "given_name",
+      disabled: "true",
       label: { text: "Given name" },
       value: name.givenName,
       attributes: { readonly: "readonly" }
@@ -39,6 +40,7 @@
 
     {{ govukInput({
       id: "family_name",
+      disabled: "true",
       label: { text: "Family name" },
       value: name.familyName,
       attributes: { readonly: "readonly" }

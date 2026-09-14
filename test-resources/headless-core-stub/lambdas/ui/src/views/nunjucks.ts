@@ -44,4 +44,4 @@ nunjucksEnvironment.addGlobal("root", UI_ROOT);
 nunjucksEnvironment.addGlobal("signInPath", SIGN_IN_PATH);
 nunjucksEnvironment.addGlobal("startPath", START_PATH);
 
-export const configureViews = (app: Express): void => nunjucksEnvironment.express(app);
+export const configureNunjucksViews = (app: Express): void => nunjucksEnvironment.express(app);

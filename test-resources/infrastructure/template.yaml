@@ -694,10 +694,8 @@ Resources:
           MetricsEnabled: true
           ThrottlingRateLimit: 10000
           ThrottlingBurstLimit: 20000
-        # Slows password guessing against the UI sign-in form. Only POSTs are throttled, so page loads
-        # and cached assets are unaffected, and no human gets near 5/s. Note this is an aggregate limit
-        # across all callers rather than per-IP - per-IP needs WAF. ResourcePath encodes / as ~1, and a
-        # path that does not match an actual resource is ignored silently rather than failing the deploy.
+        # the idea here is to slow password guessing on the UI sign in page, this is quite basic but best
+        # we can do without investing in WAF etc
         - ResourcePath: "/~1ui~1{proxy+}"
           HttpMethod: "POST"
           ThrottlingRateLimit: 5
