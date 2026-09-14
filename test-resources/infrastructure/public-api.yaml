@@ -177,6 +177,59 @@ paths:
         contentHandling: "CONVERT_TO_TEXT"
         type: "aws_proxy"
 
+  /ui:
+    get:
+      description: UI for starting a CRI journey against the headless core stub
+      responses:
+        200:
+          description: OK
+          content:
+            text/html:
+              schema:
+                type: string
+        401:
+          description: Basic auth credentials missing or incorrect
+        502:
+          description: Downstream lambda failure
+        503:
+          description: Basic auth has not been configured
+      x-amazon-apigateway-integration:
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UiFunction.Arn}:live/invocations
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+  /ui/{proxy+}:
+    x-amazon-apigateway-any-method:
+      summary: Form submission and static assets for the headless core stub UI
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: OK
+        302:
+          description: Redirect into the CRI authorise endpoint
+        400:
+          description: The submitted form failed validation
+      x-amazon-apigateway-integration:
+        httpMethod: "POST"
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UiFunction.Arn}:live/invocations
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws_proxy"
+
 x-amazon-apigateway-request-validators:
   Validate both:
     validateRequestBody: true

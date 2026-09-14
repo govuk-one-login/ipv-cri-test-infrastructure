@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" class="govuk-template">
+  <head>
+    <meta charset="utf-8">
+    <title>{{ title }} - {{ serviceName }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0c0c">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" sizes="any" href="{{ faviconPath }}" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ stylesheetPath }}">
+  </head>
+  <body class="govuk-template__body">
+    <a href="#main-content" class="govuk-skip-link" data-module="govuk-skip-link">Skip to main content</a>
+
+    <div class="govuk-header" data-module="govuk-header">
+      <div class="govuk-header__container govuk-width-container">
+        <div class="govuk-header__logo">
+          <a href="/ui" class="govuk-header__homepage-link">
+            <span class="govuk-header__product-name">{{ serviceName }}</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="govuk-width-container">
+      <main class="govuk-main-wrapper" id="main-content">
+        <div class="govuk-grid-row">
+          <div class="govuk-grid-column-two-thirds">
+            {% block content %}{% endblock %}
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

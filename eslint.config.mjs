@@ -8,7 +8,7 @@ export default defineConfig(
   js.configs.recommended,
   tseslint.configs.recommended,
   eslintConfigPrettier,
-  globalIgnores(["**/.aws-sam/**"]),
+  globalIgnores(["**/.aws-sam/**", "**/.build/**"]),
   {
     languageOptions: {
       globals: globals.node,
