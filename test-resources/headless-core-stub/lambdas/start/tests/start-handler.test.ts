@@ -3,11 +3,10 @@ import { GetPublicKeyCommand, KMSClient } from "@aws-sdk/client-kms";
 import { APIGatewayProxyEvent } from "aws-lambda/trigger/api-gateway-proxy";
 import { mockClient } from "aws-sdk-client-mock";
 import { generateKeyPairSync } from "node:crypto";
-import { StartLambdaHandler } from "../src/start-handler";
+import { StartLambdaHandler, logger } from "../src/start-handler";
 import { TestData } from "../../../utils/tests/test-data";
-import { Context } from "aws-lambda";
 import { ClientConfiguration } from "../../../utils/src/services/client-configuration";
-import { describe, it, expect, vi, MockInstance } from "vitest";
+import { describe, it, expect, vi, MockInstance, beforeEach, afterEach } from "vitest";
 
 const mockKMSClient = mockClient(KMSClient);
 let getParametersSpy: MockInstance;
@@ -40,6 +39,7 @@ describe("start-handler", () => {
     afterEach(() => {
         mockKMSClient.reset();
         clearCaches();
+        vi.restoreAllMocks();
     });
 
     it("returns 200 when body is empty", async () => {
@@ -48,12 +48,12 @@ describe("start-handler", () => {
             body: JSON.stringify({}),
         } as unknown as APIGatewayProxyEvent;
 
-        const result = await startLambdaHandler.handler(event, {} as Context);
+        const result = await startLambdaHandler.handler(event);
         const body = JSON.parse(result.body);
 
         expect(result.statusCode).toEqual(200);
         expect(body.client_id).toEqual("ipv-core-stub-aws-headless");
-        expect(getParametersSpy).toHaveBeenCalledWith(body.client_id);
+        expect(getParametersSpy).toHaveBeenCalledWith(body.client_id, logger);
         expect(body.request).toMatch(
             /^eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/g,
         );
@@ -65,7 +65,7 @@ describe("start-handler", () => {
             body: null,
         } as unknown as APIGatewayProxyEvent;
 
-        const result = await startLambdaHandler.handler(event, {} as Context);
+        const result = await startLambdaHandler.handler(event);
         const body = JSON.parse(result.body);
 
         expect(result.statusCode).toEqual(200);
@@ -81,7 +81,7 @@ describe("start-handler", () => {
             body: JSON.stringify(TestData.jwtClaimsSet),
         } as unknown as APIGatewayProxyEvent;
 
-        const result = await startLambdaHandler.handler(event, {} as Context);
+        const result = await startLambdaHandler.handler(event);
         const body = JSON.parse(result.body);
 
         expect(result.statusCode).toEqual(200);
@@ -97,12 +97,12 @@ describe("start-handler", () => {
             body: JSON.stringify({ client_id: "mock-client-id" }),
         } as unknown as APIGatewayProxyEvent;
 
-        const result = await startLambdaHandler.handler(event, {} as Context);
+        const result = await startLambdaHandler.handler(event);
         const body = JSON.parse(result.body);
 
         expect(result.statusCode).toEqual(200);
         expect(body.client_id).toEqual("mock-client-id");
-        expect(getParametersSpy).toHaveBeenCalledWith(body.client_id);
+        expect(getParametersSpy).toHaveBeenCalledWith(body.client_id, logger);
         expect(body.request).toMatch(
             /^eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/g,
         );
@@ -116,7 +116,7 @@ describe("start-handler", () => {
             }),
         } as unknown as APIGatewayProxyEvent;
 
-        const result = await startLambdaHandler.handler(event, {} as Context);
+        const result = await startLambdaHandler.handler(event);
 
         expect(result).toEqual({
             body: '{"message":"Claims set failed validation: /aud - must match format \\"uri\\""}',
@@ -130,7 +130,7 @@ describe("start-handler", () => {
             body: "{",
         } as unknown as APIGatewayProxyEvent;
 
-        const result = await startLambdaHandler.handler(event, {} as Context);
+        const result = await startLambdaHandler.handler(event);
 
         expect(result).toEqual({
             body: '{"message":"Body is not valid JSON"}',

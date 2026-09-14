@@ -4,7 +4,7 @@ import { Logger } from "@aws-lambda-powertools/logger";
 import { CallBackService } from "./services/callback-service";
 import { generatePrivateJwtParams } from "./services/private-key-jwt-helper";
 import { JWK } from "jose";
-import { HeadlessCoreStubError } from "../../../utils/src//errors/headless-core-stub-error";
+import { HeadlessCoreStubError } from "../../../utils/src/errors/headless-core-stub-error";
 import { handleErrorResponse } from "../../../utils/src/errors/error-response";
 import { ClientConfiguration } from "../../../utils/src/services/client-configuration";
 import { base64Decode } from "../../../utils/src/base64";
@@ -73,7 +73,7 @@ export class CallbackLambdaHandler implements LambdaInterface {
     }
 
     private async fetchSSMParameters(clientId: string) {
-        const ssmParameters = await ClientConfiguration.getConfig(clientId);
+        const ssmParameters = await ClientConfiguration.getConfig(clientId, logger);
         const filteredParams = this.excludeFromRecord(ssmParameters, "privateSigningKey");
 
         logger.info({ message: "Fetched SSM parameters", ...filteredParams });

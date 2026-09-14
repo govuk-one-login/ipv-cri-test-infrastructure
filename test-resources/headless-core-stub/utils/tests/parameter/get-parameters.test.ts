@@ -57,3 +57,36 @@ describe("getParametersValues", () => {
         );
     });
 });
+
+describe("getOptionalParameterValue", () => {
+    const mockParameterPath = "/test-resources/mock-client-id/privateSigningKey";
+
+    beforeEach(() => {
+        vi.resetAllMocks();
+    });
+
+    it("returns the value when the parameter resolves successfully", async () => {
+        mockGetParametersByName.mockResolvedValueOnce({
+            [mockParameterPath]: "mock-key",
+            _errors: [],
+        });
+
+        await expect(GetParameters.getOptionalParameterValue(mockParameterPath)).resolves.toEqual("mock-key");
+        expect(mockGetParametersByName).toHaveBeenCalledWith(
+            { [mockParameterPath]: {} },
+            { maxAge: 300, throwOnError: false },
+        );
+    });
+
+    it("returns undefined when the parameter does not exist", async () => {
+        mockGetParametersByName.mockResolvedValueOnce({ _errors: [mockParameterPath] });
+
+        await expect(GetParameters.getOptionalParameterValue(mockParameterPath)).resolves.toBeUndefined();
+    });
+
+    it("returns undefined when the parameter cannot be read", async () => {
+        mockGetParametersByName.mockRejectedValueOnce(new Error("AccessDeniedException"));
+
+        await expect(GetParameters.getOptionalParameterValue(mockParameterPath)).resolves.toBeUndefined();
+    });
+});

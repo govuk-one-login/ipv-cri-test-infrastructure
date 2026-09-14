@@ -17,3 +17,20 @@ export const getParametersValues = async (parameterPaths: string[]): Promise<Rec
         }),
     );
 };
+
+export const getOptionalParameterValue = async (parameterPath: string): Promise<string | undefined> => {
+    try {
+        const { _errors: errors, ...parameters } = await getParametersByName<string>(
+            { [parameterPath]: {} },
+            { maxAge: 300, throwOnError: false },
+        );
+
+        if (errors?.length) {
+            return undefined;
+        } else {
+            return String(parameters[parameterPath]);
+        }
+    } catch {
+        return undefined;
+    }
+};

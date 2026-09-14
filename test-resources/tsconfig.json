@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "target": "es2022",
+        "lib": ["es2022"],
+        "module": "preserve",
+        "skipLibCheck": true,
+        "paths": {
+            "ajv": ["./node_modules/ajv"],
+            "ajv/*": ["./node_modules/ajv/*"]
+        }
+    },
+    "exclude": ["node_modules", "headless-journey-script"]
+}

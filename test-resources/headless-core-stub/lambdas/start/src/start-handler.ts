@@ -3,9 +3,9 @@ import { Logger } from "@aws-lambda-powertools/logger";
 import { injectLambdaContext } from "@aws-lambda-powertools/logger/middleware";
 import middy from "@middy/core";
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { JWK, JWTPayload, KeyLike } from "jose";
+import { JWK, JWTPayload } from "jose";
 import { signJwt } from "../../../utils/src/crypto/signer";
-import { handleErrorResponse } from "./../../../utils/src/errors/error-response";
+import { handleErrorResponse } from "../../../utils/src/errors/error-response";
 import { ClientConfiguration } from "../../../utils/src/services/client-configuration";
 import { generateJwtClaimsSet, parseJwtClaimsSetOverrides, validateClaimsSet } from "./services/jwt-claims-set-service";
 import { encryptSignedJwt, getPublicEncryptionKey } from "./services/signing-service";
@@ -20,7 +20,7 @@ export class StartLambdaHandler implements LambdaInterface {
         try {
             const jwtClaimsSetOverrides: ClaimsSetOverrides = parseJwtClaimsSetOverrides(event?.body);
 
-            const ssmParameters = await ClientConfiguration.getConfig(jwtClaimsSetOverrides.client_id);
+            const ssmParameters = await ClientConfiguration.getConfig(jwtClaimsSetOverrides.client_id, logger);
 
             const jwtClaimsSet: JWTClaimsSet = await generateJwtClaimsSet(jwtClaimsSetOverrides, ssmParameters);
 
@@ -34,7 +34,7 @@ export class StartLambdaHandler implements LambdaInterface {
             };
             const signedJwt = await signJwt(jwtClaimsSet as JWTPayload, signingKey, jwtHeader);
 
-            const publicEncryptionKey = (await getPublicEncryptionKey(jwtClaimsSet.aud)) as KeyLike;
+            const publicEncryptionKey = await getPublicEncryptionKey(jwtClaimsSet.aud);
 
             const encryptedSignedJwt = await encryptSignedJwt(signedJwt, publicEncryptionKey);
 

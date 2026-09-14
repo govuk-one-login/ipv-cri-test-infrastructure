@@ -1,5 +1,5 @@
 import { GetPublicKeyCommand, KMSClient } from "@aws-sdk/client-kms";
-import { CompactEncrypt, importJWK, importSPKI, JWK, KeyLike } from "jose";
+import { CompactEncrypt, CryptoKey, importJWK, importSPKI, JWK } from "jose";
 import {
     clearJWKSCache,
     fetchAndCacheJWKS,
@@ -13,7 +13,7 @@ import { Logger } from "@aws-lambda-powertools/logger";
 const kmsClient = new KMSClient({ region: "eu-west-2" });
 export const logger = new Logger();
 
-let cachedPublicKey: KeyLike | undefined;
+let cachedPublicKey: CryptoKey | undefined;
 
 export const getPublicEncryptionKey = async (audience: string) => {
     if (isJWKSCacheValid()) {
@@ -34,7 +34,7 @@ export const getPublicEncryptionKey = async (audience: string) => {
     return cachedPublicKey;
 };
 
-export const encryptSignedJwt = (signedJwt: string, publicEncryptionKey: KeyLike) => {
+export const encryptSignedJwt = (signedJwt: string, publicEncryptionKey: CryptoKey) => {
     return new CompactEncrypt(new TextEncoder().encode(signedJwt))
         .setProtectedHeader({ alg: "RSA-OAEP-256", enc: "A256GCM" })
         .encrypt(publicEncryptionKey);
@@ -78,7 +78,7 @@ async function setCachedPublicEncryptionKeyFromJwks(audience: string) {
     }
 
     logger.info({ message: "Retrieved encryption key from JWKS", ...encryptionKey });
-    cachedPublicKey = encryptionKey && ((await importJWK(encryptionKey, "RSA-OAEP-256")) as KeyLike);
+    cachedPublicKey = encryptionKey && ((await importJWK(encryptionKey, "RSA-OAEP-256")) as CryptoKey);
 }
 
 async function setPublicEncryptionKeyFromKms() {
@@ -98,5 +98,5 @@ async function setPublicEncryptionKeyFromKms() {
     const value = base64PublicKey.match(/.{1,64}/g)?.join("\n");
     const publicKeyPem = `${header}\n${value}\n${footer}`;
 
-    cachedPublicKey = await importSPKI(publicKeyPem, "RS256");
+    cachedPublicKey = await importSPKI(publicKeyPem, "RSA-OAEP-256");
 }
