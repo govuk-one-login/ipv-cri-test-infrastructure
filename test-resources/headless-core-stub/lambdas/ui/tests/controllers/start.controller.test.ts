@@ -1,13 +1,12 @@
 import { InvokeCommand, type InvokeCommandOutput, LambdaClient } from "@aws-sdk/client-lambda";
 import { mockClient } from "aws-sdk-client-mock";
-import request from "supertest";
+import type request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createApp } from "../src/app";
+import { validateStartForm } from "../../src/controllers/start.controller";
+import { START_PATH, UI_ROOT } from "../../src/paths";
+import { configureEnvironment, CRI_FRONTEND_URL, signedInAgent } from "../helpers/app";
 
 const lambdaMock = mockClient(LambdaClient);
-
-const CRI_FRONTEND_URL = "https://review-ob.dev.account.gov.uk";
-const CREDENTIALS = { username: "smcduck", password: "hunter2" }; // pragma: allowlist secret
 
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)) as InvokeCommandOutput["Payload"];
 
@@ -19,109 +18,73 @@ const resolveStart = () =>
         }),
     });
 
-let agent: ReturnType<typeof request.agent>;
+const overridesSentToStub = () => {
+    const payload = JSON.parse(lambdaMock.commandCalls(InvokeCommand)[0].args[0].input.Payload as string);
+
+    return JSON.parse(payload.body);
+};
 
 const validForm = {
     client_id: "ipv-core-stub-aws-headless",
     authorise_base_url: CRI_FRONTEND_URL,
 };
 
+let agent: ReturnType<typeof request.agent>;
+
 beforeEach(async () => {
     lambdaMock.reset();
-    process.env.UI_SESSION_KEY = Buffer.alloc(32, "k").toString("base64");
-    process.env.UI_CREDENTIALS = `${CREDENTIALS.username}:${CREDENTIALS.password}`;
-    process.env.CRI_FRONTEND_URL = CRI_FRONTEND_URL;
-    process.env.START_FUNCTION_NAME = "test-resources-StartFunction:live";
-
-    agent = request.agent(createApp());
-    await agent.post("/ui/sign-in").type("form").send(CREDENTIALS).expect(302);
+    configureEnvironment();
+    agent = await signedInAgent();
 });
 
-describe("sign in", () => {
-    it("redirects to sign in page when no session is present", async () => {
-        const response = await request(createApp()).get("/ui");
+const submitForm = (form: Record<string, string>) => agent.post(START_PATH).type("form").send(form);
 
-        expect(response.status).toBe(302);
-        expect(response.headers.location).toBe("/ui/sign-in");
+describe("validateStartForm", () => {
+    it("accepts the deployed CRI front end", () => {
+        const { errors, authoriseBase } = validateStartForm(validForm);
+
+        expect(errors).toEqual({});
+        expect(authoriseBase?.origin).toBe(CRI_FRONTEND_URL);
     });
 
-    it("renders sign in page", async () => {
-        const response = await request(createApp()).get("/ui/sign-in");
+    it("accepts a localhost front end", () => {
+        const form = { ...validForm, authorise_base_url: "http://localhost:4501" };
 
-        expect(response.status).toBe(200);
-        expect(response.text).toContain('action="/ui/sign-in"');
-        expect(response.text).toContain('id="password" name="password" type="password"');
+        const { errors, authoriseBase } = validateStartForm(form);
+
+        expect(errors).toEqual({});
+        expect(authoriseBase?.origin).toBe("http://localhost:4501");
     });
 
-    it("sets session cookie on successful sign in", async () => {
-        const response = await request(createApp()).post("/ui/sign-in").type("form").send(CREDENTIALS);
+    it("rejects any other host", () => {
+        const form = { ...validForm, authorise_base_url: "https://evil.example.com" };
 
-        expect(response.status).toBe(302);
-        expect(response.headers.location).toBe("/ui");
-        expect(response.headers["set-cookie"][0]).toMatch(/^ui_session=.+HttpOnly/s);
+        const { errors, authoriseBase } = validateStartForm(form);
+
+        expect(errors.authoriseBaseUrl).toBe(`Enter either ${CRI_FRONTEND_URL} or a localhost address`);
+        expect(authoriseBase).toBeUndefined();
     });
 
-    it("rejects wrong password without setting session cookie", async () => {
-        const response = await request(createApp())
-            .post("/ui/sign-in")
-            .type("form")
-            .send({ ...CREDENTIALS, password: "wrong" }); // pragma: allowlist secret
+    it("requires a client id", () => {
+        const { values, errors } = validateStartForm({ ...validForm, client_id: "  " });
 
-        expect(response.status).toBe(401);
-        expect(response.text).toContain("Incorrect username or password");
-        expect(response.headers["set-cookie"]).toBeUndefined();
+        expect(values.clientId).toBe("");
+        expect(errors.clientId).toBe("Enter an OAuth Client ID");
     });
 
-    it("rejects a session cookie encrypted with a different key", async () => {
-        process.env.UI_SESSION_KEY = Buffer.alloc(32, "a").toString("base64");
+    it("requires a front end url", () => {
+        const { errors } = validateStartForm({ ...validForm, authorise_base_url: "" });
 
-        const response = await agent.get("/ui");
-
-        expect(response.status).toBe(302);
-        expect(response.headers.location).toBe("/ui/sign-in");
-    });
-
-    it("errors when no session key is configured", async () => {
-        delete process.env.UI_SESSION_KEY;
-        delete process.env.SESSION_KEY_PARAM_NAME;
-
-        const response = await request(createApp()).post("/ui/sign-in").type("form").send(CREDENTIALS);
-
-        expect(response.status).toBe(503);
-    });
-
-    it("errors when no creds are configured", async () => {
-        delete process.env.UI_CREDENTIALS;
-        delete process.env.CREDENTIALS_PARAM_NAME;
-
-        const response = await request(createApp()).post("/ui/sign-in").type("form").send(CREDENTIALS);
-
-        expect(response.status).toBe(503);
-    });
-
-    it("does not protect the stylesheet", async () => {
-        const response = await request(createApp()).get("/ui/govuk.css");
-
-        expect(response.status).toBe(200);
-        expect(response.headers["content-type"]).toContain("text/css");
-    });
-
-    it("does not protect the favicon", async () => {
-        const response = await request(createApp()).get("/ui/favicon.svg").buffer(true);
-
-        expect(response.status).toBe(200);
-        expect(response.headers["content-type"]).toContain("image/svg+xml");
-        expect(response.body.toString()).toContain("<svg");
+        expect(errors.authoriseBaseUrl).toBe("Enter the CRI front URL");
     });
 });
 
 describe("GET /ui", () => {
     it("renders the form with defaults", async () => {
-        const response = await agent.get("/ui");
+        const response = await agent.get(UI_ROOT);
 
         expect(response.status).toBe(200);
         expect(response.text).toMatch(/<title>Start a journey - .+<\/title>/);
-        expect(response.text).toContain('<link rel="icon" sizes="any" href="/ui/favicon.svg" type="image/svg+xml">');
         expect(response.text).toContain('id="client_id"');
         expect(response.text).toContain('value="ipv-core-stub-aws-headless"');
         expect(response.text).toContain('value="KENNETH"');
@@ -130,8 +93,6 @@ describe("GET /ui", () => {
         expect(response.text).not.toContain("govuk-error-summary");
     });
 });
-
-const submitForm = (form: Record<string, string>) => agent.post("/ui/start").type("form").send(form);
 
 describe("POST /ui/start", () => {
     it("creates a JWT and redirects to the authorise endpoint", async () => {
@@ -145,9 +106,14 @@ describe("POST /ui/start", () => {
         expect(location.pathname).toBe("/oauth2/authorize");
         expect(location.searchParams.get("client_id")).toBe("ipv-core-stub-aws-headless");
         expect(location.searchParams.get("request")).toBe("encrypted.jwt");
+    });
 
-        const payload = JSON.parse(lambdaMock.commandCalls(InvokeCommand)[0].args[0].input.Payload as string);
-        const overrides = JSON.parse(payload.body);
+    it("sends the default shared claims to the stub", async () => {
+        resolveStart();
+
+        await submitForm(validForm);
+
+        const overrides = overridesSentToStub();
         expect(overrides.shared_claims.name[0].nameParts).toEqual([
             { type: "GivenName", value: "KENNETH" },
             { type: "FamilyName", value: "DECERQUEIRA" },
@@ -155,7 +121,7 @@ describe("POST /ui/start", () => {
         expect(overrides.shared_claims.address).toHaveLength(1);
     });
 
-    it("redirects to a local front", async () => {
+    it("redirects to a local front end", async () => {
         resolveStart();
 
         const response = await submitForm({ ...validForm, authorise_base_url: "http://localhost:4501" });
@@ -169,8 +135,7 @@ describe("POST /ui/start", () => {
 
         await submitForm({ ...validForm, client_id: "some-other-client" });
 
-        const payload = JSON.parse(lambdaMock.commandCalls(InvokeCommand)[0].args[0].input.Payload as string);
-        expect(JSON.parse(payload.body).client_id).toBe("some-other-client");
+        expect(overridesSentToStub().client_id).toBe("some-other-client");
     });
 
     it("rejects an invalid redirect host without calling the stub", async () => {
@@ -182,7 +147,7 @@ describe("POST /ui/start", () => {
         expect(lambdaMock.commandCalls(InvokeCommand)).toHaveLength(0);
     });
 
-    it("render form errors", async () => {
+    it("renders field errors", async () => {
         const response = await submitForm({ ...validForm, client_id: "  " });
 
         expect(response.status).toBe(400);

@@ -11,7 +11,7 @@
 
   <h1 class="govuk-heading-l">{{ title }}</h1>
 
-  <form method="post" action="/ui/sign-in" novalidate>
+  <form method="post" action="{{ basePath }}{{ signInPath }}" novalidate>
     {{ govukInput({
       id: "username",
       name: "username",
