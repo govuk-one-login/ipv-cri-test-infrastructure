@@ -41,6 +41,21 @@ Parameters:
     AllowedValues: ["true", "false"]
 
 Mappings:
+  UiAllowedSourceIps:
+    Ipv4:
+      Cidrs:
+        - "217.196.229.77/32"
+        - "217.196.229.79/32"
+        - "217.196.229.80/32"
+        - "217.196.229.81/32"
+        - "51.149.8.0/25"
+        - "51.149.8.128/29"
+        - "159.254.101.107/32"
+        - "159.254.101.75/32"
+        - "164.137.3.121/32"
+        - "164.137.3.89/32"
+        - "3.9.56.99/32"
+
   KeyRotationMapping:
     di-ipv-cri-address-api:
       localdev: true
@@ -255,6 +270,8 @@ Resources:
       Handler: mock-jwk-handler.lambdaHandler
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      LoggingConfig:
+        LogGroup: !Ref MockJwkFunctionLogGroup
       Policies:
         - Statement:
             - Effect: Allow
@@ -272,7 +289,7 @@ Resources:
   MockJwkFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${MockJwkFunction}"
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}/MockJwkFunction"
       RetentionInDays: 30
 
   MockJwkFunctionAliasPermission:
@@ -302,7 +319,7 @@ Resources:
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
       LoggingConfig:
-        LogGroup: !Sub /aws/lambda/${AWS::StackName}/StartFunction
+        LogGroup: !Ref StartFunctionLogGroup
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: HeadlessCoreStubStartFunction
@@ -340,6 +357,59 @@ Resources:
       FunctionName: !Ref StartFunction.Alias
       Principal: apigateway.amazonaws.com
 
+  UiFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - headless-core-stub/lambdas/ui/src/handler/ui-handler.ts
+        Format: esm
+        Target: es2024
+        Sourcemap: true
+        OutExtension:
+          - .js=.mjs
+        Loader:
+          - .css=text
+          - .njk=text
+          - .svg=text
+          - .woff2=dataurl
+        Banner:
+          - js=import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-UiFunction"
+      Handler: ui-handler.lambdaHandler
+      Runtime: nodejs24.x
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      LoggingConfig:
+        LogGroup: !Ref UiFunctionLogGroup
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: HeadlessCoreStubUiFunction
+          START_FUNCTION_NAME: !Ref StartFunction.Alias
+          CRI_FRONTEND_URL: !Sub
+            - https://${TEST_HARNESS_BASEURL}
+            - TEST_HARNESS_BASEURL: !FindInMap [TestHarnessUrl, !Ref CriIdentifier, !Ref Environment]
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !Ref StartFunction.Alias
+
+  UiFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}/UiFunction"
+      RetentionInDays: 30
+
+  UiFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref UiFunction.Alias
+      Principal: apigateway.amazonaws.com
+
   CallbackFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -359,6 +429,8 @@ Resources:
       Handler: callback-handler.lambdaHandler
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      LoggingConfig:
+        LogGroup: !Ref CallbackFunctionLogGroup
       Environment:
         Variables:
           API_KEY:
@@ -398,7 +470,7 @@ Resources:
   CallbackFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${CallbackFunction}"
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}/CallbackFunction"
       RetentionInDays: 30
 
   CallbackFunctionAliasPermission:
@@ -426,6 +498,8 @@ Resources:
       Handler: dequeue-handler.lambdaHandler
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      LoggingConfig:
+        LogGroup: !Ref DequeueFunctionLogGroup
       VpcConfig:
         SecurityGroupIds:
           - Fn::ImportValue: !Sub "${VpcStackName}-AWSServicesEndpointSecurityGroupId"
@@ -487,7 +561,7 @@ Resources:
   DequeueFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${DequeueFunction}"
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}/DequeueFunction"
       RetentionInDays: 30
 
   AuditEventRelayTopic:
@@ -601,6 +675,15 @@ Resources:
               StringNotEquals:
                 "aws:PrincipalAccount":
                   - !Sub "${AWS::AccountId}"
+          - Effect: Deny
+            Principal: "*"
+            Action: "execute-api:Invoke"
+            Resource:
+              - !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/${Environment}/*/ui"
+              - !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/${Environment}/*/ui/*"
+            Condition:
+              NotIpAddress:
+                "aws:SourceIp": !FindInMap [UiAllowedSourceIps, Ipv4, Cidrs]
           - Effect: Allow
             Principal: "*"
             Action: "execute-api:Invoke"
@@ -727,6 +810,17 @@ Outputs:
         - https://${URL}/
         - URL: !Ref TestHarnessCustomDomain
       - !Sub https://${TestHarnessAPIGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/
+
+  TestHarnessUiUrl:
+    Description: URL of the headless core stub UI for starting a CRI journey from a browser
+    Export:
+      Name: !Sub ${AWS::StackName}-TestHarnessUiUrl
+    Value: !If
+      - CreateDomainResources
+      - !Sub
+        - https://${URL}/ui
+        - URL: !Ref TestHarnessCustomDomain
+      - !Sub https://${TestHarnessAPIGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/ui
 
   CommonStackName:
     Description: Common stack name used by the test resources
