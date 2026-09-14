@@ -1,12 +1,54 @@
 # Headless Core Stub
 
+## /ui
+
+A tiny serverless frontend for starting a CRI journey from a browser.
+
+The `CRI front URL` field is useful when working on a front end locally, point it at something like
+`http://localhost:4501` and the journey starts against your own locally running front
+
+The app invokes the `/start` function described below.
+
+### Access
+
+The frontend is behind HTTP basic auth. Create a credentials param in the account it is deployed to, or it won't work:
+
+```shell
+aws ssm put-parameter \
+  --name /test-resources/ui/basicAuthCredentials \
+  --type SecureString \
+  --value 'username:password' # change these
+```
+
+The path is configurable with the `UiBasicAuthParameterName` stack param.
+
+### Running locally
+
+```shell
+cd test-resources
+AWS_PROFILE=blah \
+START_FUNCTION_NAME=<stack-name>-StartFunction:live \
+CRI_FRONTEND_URL=https://review-xx.dev.account.gov.uk \
+  npm run ui:dev
+```
+
+Serves the app on <http://localhost:3000/ui> by default and targets a stack deployed `StartFunction`. 
+
+Active AWS credentials are required for the account managing the stack. 
+
+Basic auth defaults to `dev:dev` (only in local dev).
+
 ## /start
 
-This endpoint will generate an encrypted JWT that can be used to start a session in a CRI. You can pass in a JSON body to override the values of the JWT Claims Set, or if you pass in an empty JSON object it will generate with default values. 
+This endpoint will generate an encrypted JWT that can be used to start a session in a CRI. You can pass in a JSON body
+to override the values of the JWT Claims Set, or if you pass in an empty JSON object it will generate with default
+values.
 
-A full example of top level field overrides can be seen below. For shared_claims and evidence_requested there are more nested fields you can provide. 
+A full example of top level field overrides can be seen below. For shared_claims and evidence_requested there are more
+nested fields you can provide.
 
-It is recommended to not provide overwrites for most fields. For example, time based fields - These should only be overridden if you want to test how a CRI handles expired JWTs etc.
+It is recommended to not provide overwrites for most fields. For example, time based fields - These should only be
+overridden if you want to test how a CRI handles expired JWTs etc.
 
 ```
 {
@@ -94,11 +136,14 @@ If shared_claims is not overridden, the default will be;
     ],
 };
 ```
+
 ### Configuration
 
-This stack will need to be deployed into an account with a 'core-infrastructure' stack, as it requires the `core-infrastructure-CriDecryptionKey1Id`
+This stack will need to be deployed into an account with a 'core-infrastructure' stack, as it requires the
+`core-infrastructure-CriDecryptionKey1Id`
 
-It requires a (test) JWK private key as stored in an SSM param at `/test-resources/ipv-core-stub-aws-headless/privateSigningKey`
+It requires a (test) JWK private key as stored in an SSM param at
+`/test-resources/ipv-core-stub-aws-headless/privateSigningKey`
 
 If you are planning to use default values for `aud`, `iss`, `redirect_uri`, all of these will need SSM parameters at;   
 `/${COMMON_LAMBDAS_STACK_NAME}/clients/ipv-core-stub-aws-headless/jwtAuthentication/audience`  

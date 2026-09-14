@@ -39,6 +39,13 @@ Parameters:
     Type: String
     Default: "false"
     AllowedValues: ["true", "false"]
+  UiBasicAuthParameterName:
+    Description: >-
+      SecureString SSM parameter holding `username:password` for the /ui page. CloudFormation cannot create
+      SecureStrings, so this parameter must be created by hand once per account - see the headless core stub
+      README. The UI returns 503 until it exists.
+    Type: String
+    Default: "/test-resources/ui/basicAuthCredentials"
 
 Mappings:
   KeyRotationMapping:
@@ -338,6 +345,69 @@ Resources:
     Properties:
       Action: lambda:InvokeFunction
       FunctionName: !Ref StartFunction.Alias
+      Principal: apigateway.amazonaws.com
+
+  UiFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints:
+          - headless-core-stub/lambdas/ui/src/handler/ui-handler.ts
+        Format: esm
+        Target: es2024
+        Sourcemap: true
+        OutExtension:
+          - .js=.mjs
+        Loader:
+          - .css=text
+          - .njk=text
+          - .svg=text
+          - .woff2=dataurl
+        Banner:
+          - js=import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-UiFunction"
+      Handler: ui-handler.lambdaHandler
+      Runtime: nodejs24.x
+      CodeSigningConfigArn:
+        !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      LoggingConfig:
+        LogGroup: !Ref UiFunctionLogGroup
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: HeadlessCoreStubUiFunction
+          START_FUNCTION_NAME: !Ref StartFunction.Alias
+          BASIC_AUTH_PARAM_NAME: !Ref UiBasicAuthParameterName
+          CRI_FRONTEND_URL: !Sub
+            - https://${TEST_HARNESS_BASEURL}
+            - TEST_HARNESS_BASEURL: !FindInMap [TestHarnessUrl, !Ref CriIdentifier, !Ref Environment]
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !Ref StartFunction.Alias
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${UiBasicAuthParameterName}"
+            - Effect: Allow
+              Action: kms:Decrypt
+              Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+              Condition:
+                StringEquals:
+                  "kms:ViaService": !Sub "ssm.${AWS::Region}.amazonaws.com"
+
+  UiFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}/UiFunction"
+      RetentionInDays: 30
+
+  UiFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref UiFunction.Alias
       Principal: apigateway.amazonaws.com
 
   CallbackFunction:
@@ -727,6 +797,17 @@ Outputs:
         - https://${URL}/
         - URL: !Ref TestHarnessCustomDomain
       - !Sub https://${TestHarnessAPIGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/
+
+  TestHarnessUiUrl:
+    Description: URL of the headless core stub UI for starting a CRI journey from a browser
+    Export:
+      Name: !Sub ${AWS::StackName}-TestHarnessUiUrl
+    Value: !If
+      - CreateDomainResources
+      - !Sub
+        - https://${URL}/ui
+        - URL: !Ref TestHarnessCustomDomain
+      - !Sub https://${TestHarnessAPIGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/ui
 
   CommonStackName:
     Description: Common stack name used by the test resources
