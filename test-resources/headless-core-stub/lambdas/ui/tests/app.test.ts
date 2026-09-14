@@ -7,7 +7,7 @@ import { createApp } from "../src/app";
 const lambdaMock = mockClient(LambdaClient);
 
 const CRI_FRONTEND_URL = "https://review-ob.dev.account.gov.uk";
-const CREDENTIALS = { username: "tester", password: "s3cret" }; // pragma: allowlist secret
+const CREDENTIALS = { username: "smcduck", password: "hunter2" }; // pragma: allowlist secret
 
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)) as InvokeCommandOutput["Payload"];
 
@@ -19,40 +19,82 @@ const resolveStart = () =>
         }),
     });
 
-const submit = (form: Record<string, string>) =>
-    request(createApp()).post("/ui/start").auth(CREDENTIALS.username, CREDENTIALS.password).type("form").send(form);
+let agent: ReturnType<typeof request.agent>;
 
 const validForm = {
     client_id: "ipv-core-stub-aws-headless",
     authorise_base_url: CRI_FRONTEND_URL,
 };
 
-beforeEach(() => {
+beforeEach(async () => {
     lambdaMock.reset();
-    process.env.UI_BASIC_AUTH_CREDENTIALS = `${CREDENTIALS.username}:${CREDENTIALS.password}`;
+    process.env.UI_SESSION_KEY = Buffer.alloc(32, "k").toString("base64");
+    process.env.UI_CREDENTIALS = `${CREDENTIALS.username}:${CREDENTIALS.password}`;
     process.env.CRI_FRONTEND_URL = CRI_FRONTEND_URL;
     process.env.START_FUNCTION_NAME = "test-resources-StartFunction:live";
+
+    agent = request.agent(createApp());
+    await agent.post("/ui/sign-in").type("form").send(CREDENTIALS).expect(302);
 });
 
-describe("basic auth", () => {
-    it("challenges when no creds are sent", async () => {
+describe("sign in", () => {
+    it("redirects to sign in page when no session is present", async () => {
         const response = await request(createApp()).get("/ui");
 
-        expect(response.status).toBe(401);
-        expect(response.headers["www-authenticate"]).toMatch(/^Basic realm="CRI Journey Builder"/);
+        expect(response.status).toBe(302);
+        expect(response.headers.location).toBe("/ui/sign-in");
     });
 
-    it("rejects wrong password", async () => {
-        const response = await request(createApp()).get("/ui").auth(CREDENTIALS.username, "wrong");
+    it("renders sign in page", async () => {
+        const response = await request(createApp()).get("/ui/sign-in");
+
+        expect(response.status).toBe(200);
+        expect(response.text).toContain('action="/ui/sign-in"');
+        expect(response.text).toContain('id="password" name="password" type="password"');
+    });
+
+    it("sets session cookie on successful sign in", async () => {
+        const response = await request(createApp()).post("/ui/sign-in").type("form").send(CREDENTIALS);
+
+        expect(response.status).toBe(302);
+        expect(response.headers.location).toBe("/ui");
+        expect(response.headers["set-cookie"][0]).toMatch(/^ui_session=.+HttpOnly/s);
+    });
+
+    it("rejects wrong password without setting session cookie", async () => {
+        const response = await request(createApp())
+            .post("/ui/sign-in")
+            .type("form")
+            .send({ ...CREDENTIALS, password: "wrong" }); // pragma: allowlist secret
 
         expect(response.status).toBe(401);
+        expect(response.text).toContain("Incorrect username or password");
+        expect(response.headers["set-cookie"]).toBeUndefined();
+    });
+
+    it("rejects a session cookie encrypted with a different key", async () => {
+        process.env.UI_SESSION_KEY = Buffer.alloc(32, "a").toString("base64");
+
+        const response = await agent.get("/ui");
+
+        expect(response.status).toBe(302);
+        expect(response.headers.location).toBe("/ui/sign-in");
+    });
+
+    it("errors when no session key is configured", async () => {
+        delete process.env.UI_SESSION_KEY;
+        delete process.env.SESSION_KEY_PARAM_NAME;
+
+        const response = await request(createApp()).post("/ui/sign-in").type("form").send(CREDENTIALS);
+
+        expect(response.status).toBe(503);
     });
 
     it("errors when no creds are configured", async () => {
-        delete process.env.UI_BASIC_AUTH_CREDENTIALS;
-        delete process.env.BASIC_AUTH_PARAM_NAME;
+        delete process.env.UI_CREDENTIALS;
+        delete process.env.CREDENTIALS_PARAM_NAME;
 
-        const response = await request(createApp()).get("/ui").auth(CREDENTIALS.username, CREDENTIALS.password);
+        const response = await request(createApp()).post("/ui/sign-in").type("form").send(CREDENTIALS);
 
         expect(response.status).toBe(503);
     });
@@ -75,7 +117,7 @@ describe("basic auth", () => {
 
 describe("GET /ui", () => {
     it("renders the form with defaults", async () => {
-        const response = await request(createApp()).get("/ui").auth(CREDENTIALS.username, CREDENTIALS.password);
+        const response = await agent.get("/ui");
 
         expect(response.status).toBe(200);
         expect(response.text).toMatch(/<title>Start a journey - .+<\/title>/);
@@ -89,11 +131,13 @@ describe("GET /ui", () => {
     });
 });
 
+const submitForm = (form: Record<string, string>) => agent.post("/ui/start").type("form").send(form);
+
 describe("POST /ui/start", () => {
     it("creates a JWT and redirects to the authorise endpoint", async () => {
         resolveStart();
 
-        const response = await submit(validForm);
+        const response = await submitForm(validForm);
 
         expect(response.status).toBe(302);
         const location = new URL(response.headers.location);
@@ -111,10 +155,10 @@ describe("POST /ui/start", () => {
         expect(overrides.shared_claims.address).toHaveLength(1);
     });
 
-    it("redirects to a locally running front", async () => {
+    it("redirects to a local front", async () => {
         resolveStart();
 
-        const response = await submit({ ...validForm, authorise_base_url: "http://localhost:4501" });
+        const response = await submitForm({ ...validForm, authorise_base_url: "http://localhost:4501" });
 
         expect(response.status).toBe(302);
         expect(response.headers.location).toMatch(/^http:\/\/localhost:4501\/oauth2\/authorize\?/);
@@ -123,14 +167,14 @@ describe("POST /ui/start", () => {
     it("passes a custom client id to the stub", async () => {
         resolveStart();
 
-        await submit({ ...validForm, client_id: "some-other-client" });
+        await submitForm({ ...validForm, client_id: "some-other-client" });
 
         const payload = JSON.parse(lambdaMock.commandCalls(InvokeCommand)[0].args[0].input.Payload as string);
         expect(JSON.parse(payload.body).client_id).toBe("some-other-client");
     });
 
     it("rejects an invalid redirect host without calling the stub", async () => {
-        const response = await submit({ ...validForm, authorise_base_url: "https://evil.example.com" });
+        const response = await submitForm({ ...validForm, authorise_base_url: "https://evil.example.com" });
 
         expect(response.status).toBe(400);
         expect(response.text).toContain("There is a problem");
@@ -139,7 +183,7 @@ describe("POST /ui/start", () => {
     });
 
     it("render form errors", async () => {
-        const response = await submit({ ...validForm, client_id: "  " });
+        const response = await submitForm({ ...validForm, client_id: "  " });
 
         expect(response.status).toBe(400);
         expect(response.text).toContain("Enter an OAuth Client ID");
@@ -151,14 +195,14 @@ describe("POST /ui/start", () => {
             Payload: encode({ statusCode: 400, body: JSON.stringify({ message: "Claims set failed validation" }) }),
         });
 
-        const response = await submit(validForm);
+        const response = await submitForm(validForm);
 
         expect(response.status).toBe(502);
         expect(response.text).toContain("Claims set failed validation");
     });
 
     it("escapes user input", async () => {
-        const response = await submit({
+        const response = await submitForm({
             ...validForm,
             client_id: '"><script>alert(1)</script>',
             authorise_base_url: "https://evil.example.com",

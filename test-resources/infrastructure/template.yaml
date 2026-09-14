@@ -39,13 +39,20 @@ Parameters:
     Type: String
     Default: "false"
     AllowedValues: ["true", "false"]
-  UiBasicAuthParameterName:
+  UiCredentialsParameterName:
     Description: >-
       SecureString SSM parameter holding `username:password` for the /ui page. CloudFormation cannot create
       SecureStrings, so this parameter must be created by hand once per account - see the headless core stub
       README. The UI returns 503 until it exists.
     Type: String
-    Default: "/test-resources/ui/basicAuthCredentials"
+    Default: "/test-resources/ui/credentials"
+  UiSessionKeyParameterName:
+    Description: >-
+      SecureString SSM parameter holding a base64 random key (32 bytes) used to sign /ui session cookies.
+      Kept separate from the credentials so a captured cookie cannot be used to guess the password. Also
+      created by hand - see the headless core stub README.
+    Type: String
+    Default: "/test-resources/ui/sessionSigningKey"
 
 Mappings:
   KeyRotationMapping:
@@ -262,6 +269,8 @@ Resources:
       Handler: mock-jwk-handler.lambdaHandler
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      LoggingConfig:
+        LogGroup: !Ref MockJwkFunctionLogGroup
       Policies:
         - Statement:
             - Effect: Allow
@@ -279,7 +288,7 @@ Resources:
   MockJwkFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${MockJwkFunction}"
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}/MockJwkFunction"
       RetentionInDays: 30
 
   MockJwkFunctionAliasPermission:
@@ -309,7 +318,7 @@ Resources:
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
       LoggingConfig:
-        LogGroup: !Sub /aws/lambda/${AWS::StackName}/StartFunction
+        LogGroup: !Ref StartFunctionLogGroup
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: HeadlessCoreStubStartFunction
@@ -378,7 +387,8 @@ Resources:
         Variables:
           POWERTOOLS_SERVICE_NAME: HeadlessCoreStubUiFunction
           START_FUNCTION_NAME: !Ref StartFunction.Alias
-          BASIC_AUTH_PARAM_NAME: !Ref UiBasicAuthParameterName
+          CREDENTIALS_PARAM_NAME: !Ref UiCredentialsParameterName
+          SESSION_KEY_PARAM_NAME: !Ref UiSessionKeyParameterName
           CRI_FRONTEND_URL: !Sub
             - https://${TEST_HARNESS_BASEURL}
             - TEST_HARNESS_BASEURL: !FindInMap [TestHarnessUrl, !Ref CriIdentifier, !Ref Environment]
@@ -389,7 +399,9 @@ Resources:
               Resource: !Ref StartFunction.Alias
             - Effect: Allow
               Action: ssm:GetParameter
-              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${UiBasicAuthParameterName}"
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${UiCredentialsParameterName}"
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${UiSessionKeyParameterName}"
             - Effect: Allow
               Action: kms:Decrypt
               Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*"
@@ -429,6 +441,8 @@ Resources:
       Handler: callback-handler.lambdaHandler
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      LoggingConfig:
+        LogGroup: !Ref CallbackFunctionLogGroup
       Environment:
         Variables:
           API_KEY:
@@ -468,7 +482,7 @@ Resources:
   CallbackFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${CallbackFunction}"
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}/CallbackFunction"
       RetentionInDays: 30
 
   CallbackFunctionAliasPermission:
@@ -496,6 +510,8 @@ Resources:
       Handler: dequeue-handler.lambdaHandler
       CodeSigningConfigArn:
         !If [EnforceCodeSigning, !Ref CodeSigningConfigArn, !Ref AWS::NoValue]
+      LoggingConfig:
+        LogGroup: !Ref DequeueFunctionLogGroup
       VpcConfig:
         SecurityGroupIds:
           - Fn::ImportValue: !Sub "${VpcStackName}-AWSServicesEndpointSecurityGroupId"
@@ -557,7 +573,7 @@ Resources:
   DequeueFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${DequeueFunction}"
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}/DequeueFunction"
       RetentionInDays: 30
 
   AuditEventRelayTopic:
@@ -684,6 +700,14 @@ Resources:
           MetricsEnabled: true
           ThrottlingRateLimit: 10000
           ThrottlingBurstLimit: 20000
+        # Slows password guessing against the UI sign-in form. Only POSTs are throttled, so page loads
+        # and cached assets are unaffected, and no human gets near 5/s. Note this is an aggregate limit
+        # across all callers rather than per-IP - per-IP needs WAF. ResourcePath encodes / as ~1, and a
+        # path that does not match an actual resource is ignored silently rather than failing the deploy.
+        - ResourcePath: "/~1ui~1{proxy+}"
+          HttpMethod: "POST"
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
       AccessLogSetting:
         DestinationArn: !GetAtt ApiAccessLogGroup.Arn
         Format:

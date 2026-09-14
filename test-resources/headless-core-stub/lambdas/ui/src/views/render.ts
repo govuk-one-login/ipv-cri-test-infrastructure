@@ -2,6 +2,7 @@ import { Environment, type ILoader, Loader, type LoaderSource } from "nunjucks";
 import path from "node:path";
 import { govukTemplates } from "./govuk-templates";
 import layout from "./templates/layout.njk";
+import signIn from "./templates/sign-in.njk";
 import start from "./templates/start.njk";
 
 export const STYLESHEET_PATH = "/ui/govuk.css";
@@ -12,6 +13,7 @@ const SERVICE_NAME = "CRI Journey Builder";
 const templates: Record<string, string> = {
     ...govukTemplates,
     "layout.njk": layout,
+    "sign-in.njk": signIn,
     "start.njk": start,
 };
 

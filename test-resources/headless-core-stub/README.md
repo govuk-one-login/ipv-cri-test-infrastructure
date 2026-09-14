@@ -11,16 +11,26 @@ The app invokes the `/start` function described below.
 
 ### Access
 
-The frontend is behind HTTP basic auth. Create a credentials param in the account it is deployed to, or it won't work:
+The frontend is behind a sign-in page. 
+
+Create both of these params in the account it is deployed to, or it won't work:
 
 ```shell
 aws ssm put-parameter \
-  --name /test-resources/ui/basicAuthCredentials \
+  --name /test-resources/ui/credentials \
   --type SecureString \
   --value 'username:password' # change these
+
+aws ssm put-parameter \
+  --name /test-resources/ui/sessionSigningKey \
+  --type SecureString \
+  --value "$(openssl rand -base64 32)"
 ```
 
-The path is configurable with the `UiBasicAuthParameterName` stack param.
+The paths are configurable with the `UiCredentialsParameterName` and `UiSessionKeyParameterName` stack
+params.
+
+Rotating the session key signs everyone out.
 
 ### Running locally
 
