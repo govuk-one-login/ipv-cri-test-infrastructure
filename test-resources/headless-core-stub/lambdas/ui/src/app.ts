@@ -9,6 +9,7 @@ export const createApp = (): Express => {
     app.set("trust proxy", true); // required when sat behind api gateway to make Secure cookies work properly
     configureViews(app);
     app.use(resolveBasePath);
+    app.use(express.urlencoded({ extended: false }));
     app.use(routes());
 
     return app;
