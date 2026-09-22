@@ -1,0 +1,63 @@
+{% extends "layout.njk" %}
+
+{% from "components/button/macro.njk" import govukButton %}
+{% from "components/error-summary/macro.njk" import govukErrorSummary %}
+{% from "components/input/macro.njk" import govukInput %}
+
+{% block content %}
+  {% if errorList | length %}
+    {{ govukErrorSummary({ titleText: "There is a problem", errorList: errorList }) }}
+  {% endif %}
+
+  <h1 class="govuk-heading-l">{{ title }}</h1>
+  <p class="govuk-body">
+      Generate an encrypted JWT that can be used to start a session in a CRI.
+  </p>
+
+  <form method="post" action="{{ basePath }}{{ startPath }}" novalidate>
+    {{ govukInput({
+      id: "client_id",
+      name: "client_id",
+      spellcheck: false,
+      label: { text: "OAuth client ID" },
+      hint: { text: "Must have required parameters in SSM. Uses `ipv-core-stub-aws-headless` signing key if no specific key is deployed." },
+      value: values.clientId,
+      errorMessage: errors.clientId
+    }) }}
+
+    <h2 class="govuk-heading-m">Name</h2>
+    <p class="govuk-body">
+      The name in <code>shared_claims</code>.
+    </p>
+
+    {{ govukInput({
+      id: "given_name",
+      disabled: "true",
+      label: { text: "Given name" },
+      value: name.givenName,
+      attributes: { readonly: "readonly" }
+    }) }}
+
+    {{ govukInput({
+      id: "family_name",
+      disabled: "true",
+      label: { text: "Family name" },
+      value: name.familyName,
+      attributes: { readonly: "readonly" }
+    }) }}
+
+    <h2 class="govuk-heading-m">Destination</h2>
+
+    {{ govukInput({
+      id: "authorise_base_url",
+      name: "authorise_base_url",
+      spellcheck: false,
+      label: { text: "CRI front URL" },
+      hint: { html: 'Where your browser is going next. Change this to a localhost address (e.g. <code>http://localhost:9999</code>) to start the journey against a front end running on your computer.' },
+      value: values.authoriseBaseUrl,
+      errorMessage: errors.authoriseBaseUrl
+    }) }}
+
+    {{ govukButton({ text: "Start journey" }) }}
+  </form>
+{% endblock %}

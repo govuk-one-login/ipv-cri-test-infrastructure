@@ -1,0 +1,36 @@
+{% extends "layout.njk" %}
+
+{% from "components/button/macro.njk" import govukButton %}
+{% from "components/error-summary/macro.njk" import govukErrorSummary %}
+{% from "components/input/macro.njk" import govukInput %}
+
+{% block content %}
+  {% if errorList | length %}
+    {{ govukErrorSummary({ titleText: "There is a problem", errorList: errorList }) }}
+  {% endif %}
+
+  <h1 class="govuk-heading-l">{{ title }}</h1>
+
+  <form method="post" action="{{ basePath }}{{ signInPath }}" novalidate>
+    {{ govukInput({
+      id: "username",
+      name: "username",
+      spellcheck: false,
+      autocomplete: "username",
+      label: { text: "Username" },
+      value: values.username,
+      errorMessage: errors.username
+    }) }}
+
+    {{ govukInput({
+      id: "password",
+      name: "password",
+      type: "password",
+      autocomplete: "current-password",
+      label: { text: "Password" },
+      errorMessage: errors.password
+    }) }}
+
+    {{ govukButton({ text: "Continue" }) }}
+  </form>
+{% endblock %}

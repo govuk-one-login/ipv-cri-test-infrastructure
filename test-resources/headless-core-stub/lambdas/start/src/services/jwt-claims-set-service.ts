@@ -8,7 +8,7 @@ import { JWTClaimsSet } from "../types/jwt-claims-set";
 import { logger } from "../start-handler";
 import { base64Encode } from "../../../../utils/src/base64";
 import { HeadlessCoreStubError } from "../../../../utils/src/errors/headless-core-stub-error";
-import { DEFAULT_CLIENT_ID } from "../../../../utils/src/constants";
+import { DEFAULT_CLIENT_ID, DEFAULT_SHARED_CLAIMS } from "../../../../utils/src/constants";
 
 export const parseJwtClaimsSetOverrides = (body: string | null): ClaimsSetOverrides => {
     logger.info("Calling parseJwtClaimsSetOverrides", `${body}`);
@@ -45,7 +45,7 @@ export const generateJwtClaimsSet = async (overrides: ClaimsSetOverrides, ssmPar
         redirect_uri: redirectUri,
         state,
         govuk_signin_journey_id: overrides.govuk_signin_journey_id || randomUUID(),
-        shared_claims: overrides.shared_claims != null ? overrides.shared_claims : defaultClaims,
+        shared_claims: overrides.shared_claims != null ? overrides.shared_claims : DEFAULT_SHARED_CLAIMS,
         ...(overrides.evidence_requested && { evidence_requested: overrides.evidence_requested }),
         ...(overrides.context && { context: overrides.context }),
     } as JWTClaimsSet;
@@ -87,34 +87,3 @@ export const validateClaimsSet = (claimsSet: JWTClaimsSet) => {
 };
 
 const msToSeconds = (ms: number) => Math.floor(ms / 1000);
-
-const defaultClaims = {
-    name: [
-        {
-            nameParts: [
-                {
-                    type: "GivenName",
-                    value: "KENNETH",
-                },
-                {
-                    type: "FamilyName",
-                    value: "DECERQUEIRA",
-                },
-            ],
-        },
-    ],
-    birthDate: [
-        {
-            value: "1965-07-08",
-        },
-    ],
-    address: [
-        {
-            buildingNumber: "8",
-            streetName: "HADLEY ROAD",
-            addressLocality: "BATH",
-            postalCode: "BA2 5AA",
-            validFrom: "2021-01-01",
-        },
-    ],
-};
