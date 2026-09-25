@@ -11,7 +11,7 @@
         "sam:build": "npm run sam:validate && sam build --template ../infrastructure/template.yaml --cached --parallel",
         "sam:validate": "cd ../infrastructure && sam validate && sam validate --lint",
         "test": "npm run unit --",
-        "test:integration": "vitest run --config ../vitest.config.integration.ts --no-file-parallelism",
+        "test:integration": "vitest run --config ./vitest.config.integration.ts --no-file-parallelism",
         "test:coverage": "npm run unit -- --coverage",
         "unit": "POWERTOOLS_LOG_LEVEL=SILENT vitest run --exclude '../integration-tests/**'",
         "unit:logs": "vitest run"
