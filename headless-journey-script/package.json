@@ -7,9 +7,9 @@
     },
     "license": "MIT",
     "devDependencies": {
-        "@aws-sdk/client-api-gateway": "^3.1012.0",
-        "@aws-sdk/client-ssm": "^3.1012.0",
-        "@aws-sdk/credential-providers": "^3.1012.0",
+        "@aws-sdk/client-api-gateway": "^3.1137.0",
+        "@aws-sdk/client-ssm": "^3.1137.0",
+        "@aws-sdk/credential-providers": "^3.1137.0",
         "@types/node": "^24.12.2",
         "aws-sigv4-fetch": "^4.4.1"
     }
