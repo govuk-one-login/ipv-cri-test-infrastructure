@@ -42,7 +42,6 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.npm-token }}
 
       - name: Run tests
-        working-directory: test-resources
         run: npm run test:coverage -- --config vitest.config.ts
 
       - name: Archive coverage results
