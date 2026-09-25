@@ -90,7 +90,7 @@ jobs:
 
       - name: Assume AWS Role
         if: ${{ steps.enabled.conclusion == 'success' }}
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars[format('{0}_ROLE_ARN', matrix.cri)] }}
           aws-region: eu-west-2
