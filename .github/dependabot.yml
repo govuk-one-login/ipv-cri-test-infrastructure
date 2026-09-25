@@ -16,9 +16,8 @@ updates:
   - package-ecosystem: "npm"
     directories:
       - "/"
-      - "/test-resources"
-      - "/test-resources/audit-events-test-harness/lambdas"
-      - "/test-resources/headless-core-stub/lambdas/*"
+      - "/audit-events-test-harness/lambdas"
+      - "/headless-core-stub/lambdas/*"
     schedule:
       interval: daily
       time: "02:52"

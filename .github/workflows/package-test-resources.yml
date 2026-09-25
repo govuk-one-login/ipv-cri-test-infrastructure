@@ -38,9 +38,7 @@ jobs:
         id: build
         uses: govuk-one-login/github-actions/sam/build-application@c9c3f2ef04d9145894de83e973b0f4dc1e90d14e
         with:
-          template: test-resources/infrastructure/template.yaml
-          source-dir: test-resources
-          cache-name: test-resources
+          template: infrastructure/template.yaml
 
   publish:
     needs: build
