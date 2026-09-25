@@ -9,5 +9,5 @@
             "ajv/*": ["./node_modules/ajv/*"]
         }
     },
-    "exclude": ["node_modules", "headless-journey-script"]
+    "exclude": ["node_modules", "./headless-journey-script"]
 }

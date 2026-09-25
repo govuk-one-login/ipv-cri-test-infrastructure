@@ -1,4 +1,4 @@
-import { signJwt } from "../../../utils/src/crypto/signer";
+import { signJwt } from "../../src/crypto/signer";
 import { TestData } from "../test-data";
 import { describe, it, expect } from "vitest";
 

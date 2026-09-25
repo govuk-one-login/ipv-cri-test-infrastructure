@@ -16,4 +16,4 @@ Please note this should only be used in dev and build environments as staging an
 
 Architecture diagram in an example CRI account
 
-![Architecture diagram](./docs/test-harness.png)
+![Architecture diagram](docs/test-harness.png)

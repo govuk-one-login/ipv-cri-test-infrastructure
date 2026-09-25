@@ -58,5 +58,4 @@ jobs:
           STACK_NAME: ${{ inputs.stack-name }}
           COMMON_STACK_NAME: ${{ fromJson(inputs.stack-outputs).CommonStackName }}
           INFRA_STACK_NAME: ${{ fromJson(inputs.stack-outputs).TxmaStackName }}
-        working-directory: test-resources
         run: npm run test:integration
