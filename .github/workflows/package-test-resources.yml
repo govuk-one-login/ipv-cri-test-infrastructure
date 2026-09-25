@@ -82,7 +82,7 @@ jobs:
 
       - name: Get SAM artifact
         if: ${{ steps.enabled.conclusion == 'success' }}
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           key: ${{ needs.build.outputs.cache-key }}
           restore-keys: ${{ needs.build.outputs.cache-restore-keys }}
