@@ -30,10 +30,10 @@ jobs:
       NODE_AUTH_TOKEN: ${{ secrets.npm-token }}
     steps:
       - name: Pull repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         
       - name: Install Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           cache: npm
           cache-dependency-path: ./package-lock.json
@@ -47,7 +47,7 @@ jobs:
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Build SAM application
-        uses: govuk-one-login/github-actions/sam/build-application@87ae1213145261e3837cc38d5b9317422acd95c2
+        uses: govuk-one-login/github-actions/sam/build-application@b5f4f92a0692bf297b08c43745e545e45631f0ee
         id: build
         with:
           template: infrastructure/template.yaml
@@ -69,7 +69,7 @@ jobs:
       stack-outputs: ${{ steps.deploy.outputs.stack-outputs }}
     steps:
       - name: Deploy stack
-        uses: govuk-one-login/github-actions/sam/deploy-stack@ca188729ecb0c92e5fe5ae7c024f9894815da3a1
+        uses: govuk-one-login/github-actions/sam/deploy-stack@b5f4f92a0692bf297b08c43745e545e45631f0ee
         id: deploy
         with:
           sam-deployment-bucket: ${{ vars.DEPLOYMENT_ARTIFACTS_BUCKET }}
