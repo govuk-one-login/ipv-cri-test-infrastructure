@@ -19,10 +19,10 @@ jobs:
       NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Pull repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         
       - name: Install Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           cache: npm
           cache-dependency-path: ./package-lock.json
@@ -36,7 +36,7 @@ jobs:
 
       - name: Build SAM application
         id: build
-        uses: govuk-one-login/github-actions/sam/build-application@c9c3f2ef04d9145894de83e973b0f4dc1e90d14e
+        uses: govuk-one-login/github-actions/sam/build-application@b5f4f92a0692bf297b08c43745e545e45631f0ee
         with:
           template: infrastructure/template.yaml
 
@@ -78,11 +78,11 @@ jobs:
 
       - name: Pull repository
         if: ${{ steps.enabled.conclusion == 'success' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Get SAM artifact
         if: ${{ steps.enabled.conclusion == 'success' }}
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: ${{ needs.build.outputs.cache-key }}
           restore-keys: ${{ needs.build.outputs.cache-restore-keys }}
@@ -90,14 +90,14 @@ jobs:
 
       - name: Assume AWS Role
         if: ${{ steps.enabled.conclusion == 'success' }}
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ vars[format('{0}_ROLE_ARN', matrix.cri)] }}
           aws-region: eu-west-2
 
       - name: Upload to S3
         if: ${{ steps.enabled.conclusion == 'success' }}
-        uses: govuk-one-login/devplatform-upload-action@v3.9.2
+        uses: govuk-one-login/devplatform-upload-action/sam@7076683de6e38a0ecdfbcd273b510a47c7b9489c # v4.4.0
         with:
           artifact-bucket-name: ${{ vars[format('{0}_ARTIFACTS_BUCKET_NAME', matrix.cri)] }}
           signing-profile-name: ${{ vars[format('{0}_SIGNING_PROFILE_NAME', matrix.cri)] }}
