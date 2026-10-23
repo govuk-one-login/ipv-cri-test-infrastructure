@@ -5,8 +5,6 @@ import { vi, describe, expect, it, beforeEach, afterEach, MockInstance } from "v
 global.fetch = vi.fn();
 const mockFetch = vi.mocked(fetch);
 
-vi.spyOn(CallBackService.prototype, "fetchApiKeyValue").mockReturnValue(Promise.resolve("test-api-key"));
-
 describe("CallBack Service", () => {
     let mockLoggerError: MockInstance;
     let mockLoggerInfo: MockInstance;
