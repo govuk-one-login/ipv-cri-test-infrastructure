@@ -10,6 +10,8 @@ import { vi, it, describe, expect, MockInstance, beforeEach, afterEach } from "v
 vi.mock("../src/services/callback-service");
 vi.mock("../../../utils/src/services/client-configuration");
 
+vi.spyOn(CallBackService.prototype, "fetchApiKeyValue").mockReturnValue(Promise.resolve("test-api-key"));
+
 describe("callback-handler", () => {
     const authorizationCode = "an-authorization-code";
     const accessTokenValue = "access_token_value";
