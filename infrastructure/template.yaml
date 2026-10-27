@@ -434,7 +434,7 @@ Resources:
       Environment:
         Variables:
           API_KEY:
-            Fn::ImportValue: !Sub "${CoreInfraStackName}-ApiKey2"
+            Fn::ImportValue: !Sub "${CoreInfraStackName}-ApiKey1"
           CRI_IDENTIFIER: !Sub "${CriIdentifier}"
           TEST_RESOURCES_STACK_NAME: !Sub ${AWS::StackName}
           CORE_INFRASTRUCTURE: !Sub "${CoreInfraStackName}"
@@ -456,6 +456,7 @@ Resources:
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${CommonStackNameOverride}/clients/*/jwtAuthentication/*"
                   - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/{{resolve:ssm:/common-cri/oauth-common/stack-name}}/clients/*/jwtAuthentication/*"
                 - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/test-resources/*/privateSigningKey"
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/test-resources/apiKey"
             - Effect: Allow
               Action: cloudformation:DescribeStacks
               Resource: !Sub arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/core-infrastructure/*

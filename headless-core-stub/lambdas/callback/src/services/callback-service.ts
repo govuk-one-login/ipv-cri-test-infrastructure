@@ -1,12 +1,8 @@
 import { APIGatewayProxyResult } from "aws-lambda";
 import { Logger } from "@aws-lambda-powertools/logger";
-import { APIGatewayClient, GetApiKeyCommand } from "@aws-sdk/client-api-gateway";
-
-const apiGatewayClient = new APIGatewayClient();
+import { getParametersValues } from "../../../../utils/src/parameter/get-parameters";
 
 export class CallBackService {
-    private cachedApiKeyValue: string | undefined;
-
     constructor(private readonly logger: Logger) {}
 
     public async invokeTokenEndpoint(tokenEndpoint: string, body: string): Promise<APIGatewayProxyResult> {
@@ -64,29 +60,15 @@ export class CallBackService {
         return { statusCode: status, body: responseBody };
     }
 
+    /**
+     * This method uses SSM param as opposed to API Gateway SDK, API key lookup since the permission boundary does not
+     * allow this and devplatform won't add `apigateway:GET` to permission boundary.
+     */
     public async fetchApiKeyValue() {
-        if (this.cachedApiKeyValue) {
-            this.logger.info("Returning cached API Key");
-            return this.cachedApiKeyValue;
+        const params = await getParametersValues(["/test-resources/apiKey"]);
+        if (params.apiKey) {
+            return params.apiKey;
         }
-
-        const apiKeyId = process.env.API_KEY;
-        if (!apiKeyId) {
-            this.logger.warn("API_KEY environment variable is not set");
-            return "";
-        }
-
-        const response = await apiGatewayClient.send(new GetApiKeyCommand({ apiKey: apiKeyId, includeValue: true }));
-        if (!response.value) {
-            this.logger.warn({ message: "GetApiKeyCommand returned no value", apiKeyId });
-            return "";
-        }
-        this.cachedApiKeyValue = response.value;
-        this.logger.info({
-            message: "API key fetched",
-            lastFour: response.value.slice(-4),
-            length: response.value.length,
-        });
-        return this.cachedApiKeyValue;
+        return "";
     }
 }
