@@ -66,7 +66,6 @@ export class CallBackService {
 
     public async fetchApiKeyValue() {
         if (this.cachedApiKeyValue) {
-            this.logger.info("Returning cached API Key");
             return this.cachedApiKeyValue;
         }
 
@@ -76,17 +75,8 @@ export class CallBackService {
             return "";
         }
 
-        const response = await apiGatewayClient.send(new GetApiKeyCommand({ apiKey: apiKeyId, includeValue: true }));
-        if (!response.value) {
-            this.logger.warn({ message: "GetApiKeyCommand returned no value", apiKeyId });
-            return "";
-        }
-        this.cachedApiKeyValue = response.value;
-        this.logger.info({
-            message: "API key fetched",
-            lastFour: response.value.slice(-4),
-            length: response.value.length,
-        });
+        const { value } = await apiGatewayClient.send(new GetApiKeyCommand({ apiKey: apiKeyId, includeValue: true }));
+        this.cachedApiKeyValue = value ?? "";
         return this.cachedApiKeyValue;
     }
 }
