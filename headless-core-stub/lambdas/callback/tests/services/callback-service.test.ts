@@ -1,11 +1,17 @@
 import { CallBackService } from "../../src/services/callback-service";
 import { Logger } from "@aws-lambda-powertools/logger";
+import { APIGatewayClient, GetApiKeyCommand } from "@aws-sdk/client-api-gateway";
+import { mockClient } from "aws-sdk-client-mock";
 import { vi, describe, expect, it, beforeEach, afterEach, MockInstance } from "vitest";
 
 global.fetch = vi.fn();
 const mockFetch = vi.mocked(fetch);
+const mockApiGatewayClient = mockClient(APIGatewayClient);
 
-vi.spyOn(CallBackService.prototype, "fetchApiKeyValue").mockReturnValue(Promise.resolve("test-api-key"));
+const originalFetchApiKeyValue = CallBackService.prototype.fetchApiKeyValue;
+const fetchApiKeyValueSpy = vi
+    .spyOn(CallBackService.prototype, "fetchApiKeyValue")
+    .mockReturnValue(Promise.resolve("test-api-key"));
 
 describe("CallBack Service", () => {
     let mockLoggerError: MockInstance;
@@ -171,6 +177,56 @@ describe("CallBack Service", () => {
             await expect(callbackService.invokeCredentialEndpoint(credentialUrl, accessToken)).rejects.toThrow(
                 "Network error",
             );
+        });
+    });
+
+    describe("fetchApiKeyValue", () => {
+        beforeEach(() => {
+            process.env.API_KEY = "test-api-key-id";
+            fetchApiKeyValueSpy.mockImplementation(originalFetchApiKeyValue);
+        });
+
+        afterEach(() => {
+            mockApiGatewayClient.reset();
+            fetchApiKeyValueSpy.mockReturnValue(Promise.resolve("test-api-key"));
+        });
+
+        it("should fetch the api key value from API Gateway using the API_KEY id", async () => {
+            mockApiGatewayClient.on(GetApiKeyCommand).resolves({ id: "test-api-key-id", value: "test-api-key-value" });
+
+            const apiKey = await callbackService.fetchApiKeyValue();
+
+            expect(apiKey).toBe("test-api-key-value");
+            expect(mockApiGatewayClient.commandCalls(GetApiKeyCommand)[0].args[0].input).toEqual({
+                apiKey: "test-api-key-id",
+                includeValue: true,
+            });
+        });
+
+        it("should cache the api key value after the first call", async () => {
+            mockApiGatewayClient.on(GetApiKeyCommand).resolves({ value: "test-api-key-value" });
+
+            await callbackService.fetchApiKeyValue();
+            const apiKey = await callbackService.fetchApiKeyValue();
+
+            expect(apiKey).toBe("test-api-key-value");
+            expect(mockApiGatewayClient.commandCalls(GetApiKeyCommand)).toHaveLength(1);
+        });
+
+        it("should return an empty string and log a warning when API_KEY is not set", async () => {
+            delete process.env.API_KEY;
+
+            const apiKey = await callbackService.fetchApiKeyValue();
+
+            expect(apiKey).toBe("");
+            expect(mockLoggerWarn).toHaveBeenCalledWith("API_KEY environment variable is not set");
+            expect(mockApiGatewayClient.calls()).toHaveLength(0);
+        });
+
+        it("should throw when API Gateway returns an error", async () => {
+            mockApiGatewayClient.on(GetApiKeyCommand).rejects(new Error("Not found"));
+
+            await expect(callbackService.fetchApiKeyValue()).rejects.toThrow("Not found");
         });
     });
 });
