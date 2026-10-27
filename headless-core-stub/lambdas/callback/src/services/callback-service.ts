@@ -82,7 +82,11 @@ export class CallBackService {
             return "";
         }
         this.cachedApiKeyValue = response.value;
-        this.logger.info({ message: "API key fetched", lastFour: response.value.slice(-4) });
+        this.logger.info({
+            message: "API key fetched",
+            lastFour: response.value.slice(-4),
+            length: response.value.length,
+        });
         return this.cachedApiKeyValue;
     }
 }
