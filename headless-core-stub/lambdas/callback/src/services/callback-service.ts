@@ -1,12 +1,8 @@
 import { APIGatewayProxyResult } from "aws-lambda";
 import { Logger } from "@aws-lambda-powertools/logger";
-import { APIGatewayClient, GetApiKeyCommand } from "@aws-sdk/client-api-gateway";
-
-const apiGatewayClient = new APIGatewayClient();
+import { getParametersValues } from "../../../../utils/src/parameter/get-parameters";
 
 export class CallBackService {
-    private cachedApiKeyValue: string | undefined;
-
     constructor(private readonly logger: Logger) {}
 
     public async invokeTokenEndpoint(tokenEndpoint: string, body: string): Promise<APIGatewayProxyResult> {
@@ -65,18 +61,10 @@ export class CallBackService {
     }
 
     public async fetchApiKeyValue() {
-        if (this.cachedApiKeyValue) {
-            return this.cachedApiKeyValue;
+        const params = await getParametersValues(["/test-resources/apiKey"]);
+        if (params.apiKey) {
+            return params.apiKey;
         }
-
-        const apiKeyId = process.env.API_KEY;
-        if (!apiKeyId) {
-            this.logger.warn("API_KEY environment variable is not set");
-            return "";
-        }
-
-        const { value } = await apiGatewayClient.send(new GetApiKeyCommand({ apiKey: apiKeyId, includeValue: true }));
-        this.cachedApiKeyValue = value ?? "";
-        return this.cachedApiKeyValue;
+        return "";
     }
 }
