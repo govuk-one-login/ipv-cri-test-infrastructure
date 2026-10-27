@@ -60,6 +60,10 @@ export class CallBackService {
         return { statusCode: status, body: responseBody };
     }
 
+    /**
+     * This method uses SSM param as opposed to API Gateway SDK, API key lookup since the permission boundary does not
+     * allow this and devplatform won't add `apigateway:GET` to permission boundary.
+     */
     public async fetchApiKeyValue() {
         const params = await getParametersValues(["/test-resources/apiKey"]);
         if (params.apiKey) {
